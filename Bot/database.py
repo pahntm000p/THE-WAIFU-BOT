@@ -81,3 +81,7 @@ async def update_user_collection(user_id, updated_images):
         {"$set": {"images": updated_images}},
         upsert=True
     )
+    
+async def get_all_images():
+    characters = await db.Characters.find({}).to_list(length=None)
+    return characters    

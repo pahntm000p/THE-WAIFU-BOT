@@ -11,6 +11,8 @@ from .handlers.smash import smash_image
 from .handlers.collection import smashes  # Import the new handler
 from .handlers.gift import gift_character , confirm_gift , cancel_gift
 from .handlers.trade import initiate_trade , handle_trade_callback
+from .handlers.daan import daan
+from .handlers.sinfo import sinfo, delete_collection, close_sinfo
 
 # Pyrogram Client instance
 app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
@@ -25,6 +27,9 @@ app.on_message(filters.command("smash") & filters.group)(smash_image)
 app.on_message(filters.command("smashes"))(smashes)  # Register the new command handler
 app.on_message(filters.command("s") & filters.private)(send_inline_query_button)  # Register the new command handler
 app.on_message(filters.command("gift") & filters.group & filters.reply)(gift_character)  # Register the gift command handler
+app.on_message(filters.command("daan") & filters.user(BOT_OWNER))(daan)
+app.on_message(filters.command("sinfo") & filters.user(BOT_OWNER))(sinfo)
+
 # Register the command and callback handlers
 app.on_message(filters.command("trade") & filters.reply & filters.group)(initiate_trade)
 app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade)\|"))(handle_trade_callback)
@@ -32,6 +37,8 @@ app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade)\|"))(handle_
 # Register callback query handlers
 app.add_handler(CallbackQueryHandler(confirm_gift, filters.regex(r"^confirm_gift\|")))
 app.add_handler(CallbackQueryHandler(cancel_gift, filters.regex(r"^cancel_gift\|")))
+app.add_handler(CallbackQueryHandler(delete_collection, filters.regex(r"^delete_collection_")))
+app.add_handler(CallbackQueryHandler(close_sinfo, filters.regex(r"^close_sinfo")))
 
 
 
