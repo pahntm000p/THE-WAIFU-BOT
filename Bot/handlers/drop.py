@@ -1,33 +1,64 @@
+import random
 from pyrogram import Client, filters
-from pyrogram.types import Message, ChatMemberUpdated
-from ..database import update_msg_count, set_droptime, get_droptime, get_random_image, update_last_dropped_image
+from ..database import get_random_image, update_drop, get_message_count, update_message_count
+import requests
+from io import BytesIO
+import asyncio
 
-async def droptime(client: Client, message: Message):
+lock = asyncio.Lock()
+
+async def droptime(client: Client, message):
+    if len(message.command) < 2:
+        await message.reply("Please provide a message count.")
+        return
+
     try:
         msg_count = int(message.command[1])
-        chat_id = message.chat.id
-        await set_droptime(chat_id, msg_count)
-        await message.reply(f"Image drop time set to {msg_count} messages.")
-    except (IndexError, ValueError):
-        await message.reply("Usage: /droptime {msg_count}")
+    except ValueError:
+        await message.reply("Please provide a valid number for message count.")
+        return
 
-async def check_message_count(client: Client, message: Message):
-    chat_id = message.chat.id
-    msg_count = await update_msg_count(chat_id)
-    droptime = await get_droptime(chat_id)
+    group_id = message.chat.id
 
-    if msg_count >= droptime:
-        character = await get_random_image()
-        if character and isinstance(character, dict):
-            await client.send_photo(chat_id, character["img_url"])
-            await update_last_dropped_image(chat_id, character)
-        else:
-            print("No character found or character is not a dictionary")
-        await update_msg_count(chat_id, reset=True)  # Reset count after sending image
+    await update_message_count(group_id, msg_count, 0)
 
-async def handle_new_chat(client: Client, chat_member_updated: ChatMemberUpdated):
-    if chat_member_updated.new_chat_member:
-        chat_id = chat_member_updated.chat.id
-        await client.send_message(chat_id, "I will drop images every 100 messages. Use /droptime {msg_count} to change the interval.")
-        await set_droptime(chat_id, 100)
-        await update_msg_count(chat_id, reset=True)
+    await message.reply(f"Random image will be dropped every {msg_count} messages in this group.")
+
+async def check_message_count(client: Client, message):
+    group_id = message.chat.id
+    async with lock:
+        count_doc = await get_message_count(group_id)
+
+        if count_doc:
+            current_count = count_doc["current_count"] + 1
+            msg_count = count_doc["msg_count"]
+
+            if current_count >= msg_count:
+                current_count = 0
+                # Get a random image URL from the database
+                image_doc = await get_random_image()
+                if not image_doc:
+                    await client.send_message(group_id, "No images available to drop.")
+                    return
+
+                image_id = image_doc["id"]
+                image_url = image_doc["img_url"]
+                image_name = image_doc["name"]
+
+                try:
+                    response = requests.get(image_url)
+                    response.raise_for_status()
+
+                    image_data = BytesIO(response.content)
+                    image_data.name = image_url.split("/")[-1]
+
+                    # Store the last dropped image information
+                    await update_drop(group_id, image_id, image_name, image_url)
+
+                    # Send the image with the caption
+                    caption = f"The new food has been served, Let's see who will smash first.\n**Smash using** : /smash name"
+                    await client.send_photo(group_id, image_data, caption=caption)
+                except requests.exceptions.RequestException as e:
+                    await client.send_message(group_id, f"Failed to download the image: {e}")
+
+            await update_message_count(group_id, msg_count, current_count)
