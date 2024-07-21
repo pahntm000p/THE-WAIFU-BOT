@@ -1,15 +1,16 @@
 from pyrogram import Client, filters
 from telegram.ext import ApplicationBuilder
-from pyrogram.handlers import CallbackQueryHandler
+from pyrogram.handlers import CallbackQueryHandler , ChatMemberUpdatedHandler
 from .config import api_id, api_hash, bot_token, OWNER_ID as BOT_OWNER
 from .handlers.start import start
 from .handlers.upload import upload , edit_character
 from .handlers.inliner import inline_query_handler
 from .handlers.search import search, send_inline_query_button
-from .handlers.drop import droptime, check_message_count
+from .handlers.drop import droptime, check_message_count, handle_new_member
 from .handlers.smash import smash_image
 from .handlers.collection import smashes  # Import the new handler
 from .handlers.gift import gift_character , confirm_gift , cancel_gift
+from .handlers.trade import initiate_trade , handle_trade_callback
 
 # Pyrogram Client instance
 app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
@@ -24,11 +25,19 @@ app.on_message(filters.command("smash") & filters.group)(smash_image)
 app.on_message(filters.command("smashes"))(smashes)  # Register the new command handler
 app.on_message(filters.command("s") & filters.private)(send_inline_query_button)  # Register the new command handler
 app.on_message(filters.command("gift") & filters.group & filters.reply)(gift_character)  # Register the gift command handler
+# Register the command and callback handlers
+app.on_message(filters.command("trade") & filters.reply & filters.group)(initiate_trade)
+app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade)\|"))(handle_trade_callback)
 
 # Register callback query handlers
 app.add_handler(CallbackQueryHandler(confirm_gift, filters.regex(r"^confirm_gift\|")))
 app.add_handler(CallbackQueryHandler(cancel_gift, filters.regex(r"^cancel_gift\|")))
 
+
+
+
+# Register the new member handler for setting default droptime
+app.add_handler(ChatMemberUpdatedHandler(handle_new_member))
 
 # Filter to exclude commands
 non_command_filter = filters.group & ~filters.regex(r"^/")

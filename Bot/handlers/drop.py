@@ -1,5 +1,6 @@
 import random
 from pyrogram import Client, filters
+from pyrogram.types import Message, ChatMemberUpdated
 from ..database import get_random_image, update_drop, get_message_count, update_message_count
 import requests
 from io import BytesIO
@@ -7,7 +8,13 @@ import asyncio
 
 lock = asyncio.Lock()
 
-async def droptime(client: Client, message):
+async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
+    if member_update.new_chat_member.user.is_self:
+        group_id = member_update.chat.id
+        await update_message_count(group_id, 100, 0)
+        await client.send_message(group_id, "Default droptime set to 100 messages.")
+
+async def droptime(client: Client, message: Message):
     if len(message.command) < 2:
         await message.reply("Please provide a message count.")
         return
@@ -24,7 +31,7 @@ async def droptime(client: Client, message):
 
     await message.reply(f"Random image will be dropped every {msg_count} messages in this group.")
 
-async def check_message_count(client: Client, message):
+async def check_message_count(client: Client, message: Message):
     group_id = message.chat.id
     async with lock:
         count_doc = await get_message_count(group_id)
