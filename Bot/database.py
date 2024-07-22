@@ -7,6 +7,10 @@ db.Characters = db["Characters"]
 db.Drops = db["Drops"]
 db.MessageCounts = db["MessageCounts"]
 db.Collection = db["Collection"]
+db.Banned = db["Banned"]
+db.Sudo = db["Sudo"]
+db.Preference = db["Preference"]
+
 
 async def get_next_id():
     counter = await db.Counters.find_one_and_update(
@@ -85,3 +89,36 @@ async def update_user_collection(user_id, updated_images):
 async def get_all_images():
     characters = await db.Characters.find({}).to_list(length=None)
     return characters    
+
+
+# Add user to Banned collection
+async def ban_user(user_id):
+    await db.Banned.update_one(
+        {"user_id": user_id},
+        {"$set": {"user_id": user_id}},
+        upsert=True
+    )
+
+# Remove user from Banned collection
+async def unban_user(user_id):
+    await db.Banned.delete_one({"user_id": user_id})
+
+# Check if user is banned
+async def is_user_banned(user_id):
+    return await db.Banned.find_one({"user_id": user_id}) is not None
+
+# Add user to Sudo collection
+async def add_sudo_user(user_id):
+    await db.Sudo.update_one(
+        {"user_id": user_id},
+        {"$set": {"user_id": user_id}},
+        upsert=True
+    )
+
+# Remove user from Sudo collection
+async def remove_sudo_user(user_id):
+    await db.Sudo.delete_one({"user_id": user_id})
+
+# Check if user is sudo
+async def is_user_sudo(user_id):
+    return await db.Sudo.find_one({"user_id": user_id}) is not None
