@@ -1,6 +1,9 @@
 # __main__.py
 
-from Bot.bot import main
+from .bot import main
+import logging
+import sys
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     main()

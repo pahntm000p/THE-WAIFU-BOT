@@ -1,6 +1,10 @@
 from pyrogram import Client, filters
+from multiprocessing import Process
+import asyncio
 from pyrogram.types import Message
-from telegram.ext import ApplicationBuilder
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
 from .config import api_id, api_hash, bot_token, OWNER_ID as BOT_OWNER
 from .handlers.start import start
@@ -104,21 +108,23 @@ non_command_filter = filters.group & ~filters.regex(r"^/")
 # Register message handler with non-command filter
 app.on_message((filters.text | filters.media) & non_command_filter & command_filter)(check_message_count)
 
-# PYTHON-TELEGRAM-BOT Instance
-pbot = ApplicationBuilder().token(bot_token).build()
+# Aiogram Dispatcher instance
+aiobot = Dispatcher()
 
-# Register the inline query handler for pbot
-pbot.add_handler(inline_query_handler)
+# Register Aiogram handlers
+aiobot.inline_query.register(inline_query_handler)
+
+async def run_aiogram_bot() -> None:
+    bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    await aiobot.start_polling(bot)
 
 def run_pyro_bot():
     app.run()
 
 def run_telegram_bot():
-    pbot.run_polling()
+    asyncio.run(run_aiogram_bot())
 
 def main():
-    from multiprocessing import Process
-
     p1 = Process(target=run_pyro_bot)
     p2 = Process(target=run_telegram_bot)
     p1.start()
