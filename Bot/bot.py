@@ -19,6 +19,10 @@ from .database import is_user_banned, is_user_sudo
 from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel
 from .handlers.leaderboard import top, stop
 from .handlers.mic import check_character
+from .handlers.upreq import upreq, handle_callback
+from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
+
+
 
 # Pyrogram Client instance
 app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
@@ -60,6 +64,20 @@ app.on_message(filters.command("smode") & command_filter)(smode)
 app.on_message(filters.command("top") & filters.group & command_filter)(top)
 app.on_message(filters.command("smtop") & command_filter)(stop)
 app.on_message(filters.command("check") & filters.group & command_filter)(check_character)
+app.on_message(filters.command("upreq") & command_filter)(upreq)
+
+
+
+#Gtrade
+app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
+app.on_message(filters.command("gtreq") & filters.private & command_filter)(initiate_gtrade)
+app.on_callback_query(filters.regex(r"^accept_gtrade\|"))(handle_gtrade_callback)
+app.on_callback_query(filters.regex(r"^decline_gtrade\|"))(handle_gtrade_callback)
+app.on_callback_query(filters.regex(r"^cancel_gtrade\|"))(handle_gtrade_callback)
+
+
+
+
 
 # Register the command and callback handlers
 app.on_message(filters.command("trade") & filters.reply & filters.group & command_filter)(initiate_trade)
@@ -74,6 +92,8 @@ app.on_callback_query(filters.regex(r"^smode_default:\d+$"))(smode_default)
 app.on_callback_query(filters.regex(r"^smode_sort:\d+$"))(smode_sort)
 app.on_callback_query(filters.regex(r"^smode_rarity:[^:]+:\d+$"))(smode_rarity)
 app.on_callback_query(filters.regex(r"^smode_close:\d+$"))(smode_close)
+app.on_callback_query(filters.regex(r"^(approve_upreq|decline_upreq):"))(handle_callback)
+
 
 # Register the new member handler for setting default droptime
 app.add_handler(ChatMemberUpdatedHandler(handle_new_member))

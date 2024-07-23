@@ -10,7 +10,12 @@ db.Collection = db["Collection"]
 db.Banned = db["Banned"]
 db.Sudo = db["Sudo"]
 db.Preference = db["Preference"]
+db.Upreq = db["Upreq"]
+db.Gtreq = db["Gtreq"]
+db.Gtusers = db["Gtusers"]
 
+async def get_character_details(image_id):
+    return await db.Characters.find_one({"id": image_id})
 
 async def get_next_id():
     counter = await db.Counters.find_one_and_update(
