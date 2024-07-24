@@ -1,5 +1,6 @@
 import re
-from aiogram.types import InlineQuery, InlineQueryResultPhoto
+from telegram import InlineQueryResultPhoto
+from telegram.ext import InlineQueryHandler
 from Bot.database import db
 
 async def get_character_details(image_id):
@@ -10,8 +11,8 @@ def extract_name(user_name):
     match = re.search(r'>(.*?)<', user_name)
     return match.group(1) if match else "Unknown User"
 
-async def inline_query_handler(inline_query: InlineQuery):
-    query = inline_query.query
+async def inline_query(update, context):
+    query = update.inline_query.query
     results = []
 
     if query.startswith("smashed."):
@@ -76,4 +77,7 @@ async def inline_query_handler(inline_query: InlineQuery):
                 )
                 results.append(result)
 
-    await inline_query.answer(results, cache_time=1)
+    await update.inline_query.answer(results, cache_time=1)
+
+# Inline query handler for pbot
+inline_query_handler = InlineQueryHandler(inline_query)

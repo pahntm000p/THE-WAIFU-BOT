@@ -1,10 +1,6 @@
 from pyrogram import Client, filters
-from multiprocessing import Process
-import asyncio
 from pyrogram.types import Message
-from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
+from telegram.ext import ApplicationBuilder
 from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
 from .config import api_id, api_hash, bot_token, OWNER_ID as BOT_OWNER
 from .handlers.start import start
@@ -22,7 +18,7 @@ from .handlers.privacy import ban, unban, add_sudo, remove_sudo
 from .database import is_user_banned, is_user_sudo
 from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel
 from .handlers.leaderboard import top, stop
-from .handlers.mic import check_character
+from .handlers.mic import check_character , sstatus , show_smashers
 from .handlers.upreq import upreq, handle_callback
 from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
 
@@ -69,7 +65,7 @@ app.on_message(filters.command("top") & filters.group & command_filter)(top)
 app.on_message(filters.command("smtop") & command_filter)(stop)
 app.on_message(filters.command("check") & filters.group & command_filter)(check_character)
 app.on_message(filters.command("upreq") & command_filter)(upreq)
-
+app.on_message(filters.command("sstatus") & command_filter)(sstatus)
 
 
 #Gtrade
@@ -97,6 +93,7 @@ app.on_callback_query(filters.regex(r"^smode_sort:\d+$"))(smode_sort)
 app.on_callback_query(filters.regex(r"^smode_rarity:[^:]+:\d+$"))(smode_rarity)
 app.on_callback_query(filters.regex(r"^smode_close:\d+$"))(smode_close)
 app.on_callback_query(filters.regex(r"^(approve_upreq|decline_upreq):"))(handle_callback)
+app.add_handler(CallbackQueryHandler(show_smashers, filters.regex(r"^show_smashers_")))
 
 
 # Register the new member handler for setting default droptime
@@ -108,23 +105,23 @@ non_command_filter = filters.group & ~filters.regex(r"^/")
 # Register message handler with non-command filter
 app.on_message((filters.text | filters.media) & non_command_filter & command_filter)(check_message_count)
 
-# Aiogram Dispatcher instance
-aiobot = Dispatcher()
+# PYTHON-TELEGRAM-BOT Instance
+pbot = ApplicationBuilder().token(bot_token).build()
 
-# Register Aiogram handlers
-aiobot.inline_query.register(inline_query_handler)
+# Add the callback query handler to your application
+# Assuming `pbot` is your ApplicationBuilder instance from the previous code
+pbot.add_handler(inline_query_handler)
 
-async def run_aiogram_bot() -> None:
-    bot = Bot(token=bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    await aiobot.start_polling(bot)
 
 def run_pyro_bot():
     app.run()
 
 def run_telegram_bot():
-    asyncio.run(run_aiogram_bot())
+    pbot.run_polling()
 
 def main():
+    from multiprocessing import Process
+
     p1 = Process(target=run_pyro_bot)
     p2 = Process(target=run_telegram_bot)
     p1.start()

@@ -1,7 +1,9 @@
 import random
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
-from ..database import get_random_image, update_drop, get_message_count, update_message_count
+from pyrogram.enums import ChatMemberStatus  # Import ChatMemberStatus
+from ..database import get_random_image, update_drop, get_message_count, update_message_count, is_user_sudo
+from ..config import OWNER_ID  # Import OWNER_ID from config.py
 import requests
 from io import BytesIO
 import asyncio
@@ -13,6 +15,15 @@ async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
         group_id = member_update.chat.id
         await update_message_count(group_id, 100, 0)
         await client.send_message(group_id, "Default droptime set to 100 messages.")
+
+async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> bool:
+    # Check if the user is the owner of the bot or a sudo user
+    if user_id == OWNER_ID or await is_user_sudo(user_id):
+        return True
+    
+    # Otherwise, check if the user is an admin in the group
+    member = await client.get_chat_member(chat_id, user_id)
+    return member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
 
 async def droptime(client: Client, message: Message):
     if len(message.command) < 2:
@@ -26,9 +37,19 @@ async def droptime(client: Client, message: Message):
         return
 
     group_id = message.chat.id
+    user_id = message.from_user.id
+
+    # Check if the user is authorized to change the droptime
+    if not await is_admin_or_special(client, group_id, user_id):
+        await message.reply("You don't have rights to change the droptime in this chat")
+        return
+
+    # Restrict non-sudo users from setting droptime below 100
+    if msg_count < 100 and user_id != OWNER_ID and not await is_user_sudo(user_id):
+        await message.reply("Droptime cannot be set to less than 100.")
+        return
 
     await update_message_count(group_id, msg_count, 0)
-
     await message.reply(f"Random image will be dropped every {msg_count} messages in this group.")
 
 async def check_message_count(client: Client, message: Message):
@@ -63,7 +84,7 @@ async def check_message_count(client: Client, message: Message):
                     await update_drop(group_id, image_id, image_name, image_url)
 
                     # Send the image with the caption
-                    caption = f"The new food has been served, Let's see who will smash first.\n**Smash using** : /smash name"
+                    caption = f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name"
                     await client.send_photo(group_id, image_data, caption=caption)
                 except requests.exceptions.RequestException as e:
                     await client.send_message(group_id, f"Failed to download the image: {e}")
