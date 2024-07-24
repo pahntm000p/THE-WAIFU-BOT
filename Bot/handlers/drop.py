@@ -1,14 +1,16 @@
 import random
+import time
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
-from pyrogram.enums import ChatMemberStatus  # Import ChatMemberStatus
-from ..database import get_random_image, update_drop, get_message_count, update_message_count, is_user_sudo
-from ..config import OWNER_ID  # Import OWNER_ID from config.py
+from pyrogram.enums import ChatMemberStatus
+from ..database import get_random_image, update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned
+from ..config import OWNER_ID
 import requests
 from io import BytesIO
 import asyncio
 
 lock = asyncio.Lock()
+message_timestamps = {}  # Dictionary to store user message timestamps
 
 async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
     if member_update.new_chat_member.user.is_self:
@@ -17,11 +19,9 @@ async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
         await client.send_message(group_id, "Default droptime set to 100 messages.")
 
 async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> bool:
-    # Check if the user is the owner of the bot or a sudo user
     if user_id == OWNER_ID or await is_user_sudo(user_id):
         return True
     
-    # Otherwise, check if the user is an admin in the group
     member = await client.get_chat_member(chat_id, user_id)
     return member.status in [ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
 
@@ -39,12 +39,10 @@ async def droptime(client: Client, message: Message):
     group_id = message.chat.id
     user_id = message.from_user.id
 
-    # Check if the user is authorized to change the droptime
     if not await is_admin_or_special(client, group_id, user_id):
         await message.reply("You don't have rights to change the droptime in this chat")
         return
 
-    # Restrict non-sudo users from setting droptime below 100
     if msg_count < 100 and user_id != OWNER_ID and not await is_user_sudo(user_id):
         await message.reply("Droptime cannot be set to less than 100.")
         return
@@ -53,8 +51,25 @@ async def droptime(client: Client, message: Message):
     await message.reply(f"Random image will be dropped every {msg_count} messages in this group.")
 
 async def check_message_count(client: Client, message: Message):
+    user_id = message.from_user.id
     group_id = message.chat.id
+    current_time = time.time()
+
+    if await is_user_banned(user_id):
+        return
+
     async with lock:
+        if user_id not in message_timestamps:
+            message_timestamps[user_id] = []
+
+        message_timestamps[user_id].append(current_time)
+        message_timestamps[user_id] = [timestamp for timestamp in message_timestamps[user_id] if current_time - timestamp <= 2]
+
+        if len(message_timestamps[user_id]) >= 5:
+            await ban_user(user_id, 10)  # Ban for 10 minutes
+            await client.send_message(group_id, f"User {message.from_user.first_name} has been temporarily banned for 10 minutes for spamming.")
+            return
+
         count_doc = await get_message_count(group_id)
 
         if count_doc:
@@ -63,7 +78,6 @@ async def check_message_count(client: Client, message: Message):
 
             if current_count >= msg_count:
                 current_count = 0
-                # Get a random image URL from the database
                 image_doc = await get_random_image()
                 if not image_doc:
                     await client.send_message(group_id, "No images available to drop.")
@@ -80,10 +94,8 @@ async def check_message_count(client: Client, message: Message):
                     image_data = BytesIO(response.content)
                     image_data.name = image_url.split("/")[-1]
 
-                    # Store the last dropped image information
                     await update_drop(group_id, image_id, image_name, image_url)
 
-                    # Send the image with the caption
                     caption = f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name"
                     await client.send_photo(group_id, image_data, caption=caption)
                 except requests.exceptions.RequestException as e:

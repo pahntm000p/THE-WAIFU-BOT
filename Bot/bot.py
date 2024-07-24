@@ -103,7 +103,7 @@ app.add_handler(ChatMemberUpdatedHandler(handle_new_member))
 non_command_filter = filters.group & ~filters.regex(r"^/")
 
 # Register message handler with non-command filter
-app.on_message((filters.text | filters.media) & non_command_filter & command_filter)(check_message_count)
+app.on_message((filters.text | filters.media | filters.sticker ) & filters.group & command_filter)(check_message_count)
 
 # PYTHON-TELEGRAM-BOT Instance
 pbot = ApplicationBuilder().token(bot_token).build()

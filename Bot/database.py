@@ -1,5 +1,8 @@
 import motor.motor_asyncio
 from .config import MONGO_URL
+from datetime import datetime
+from datetime import datetime, timedelta
+
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
 db = client["WAIFU-BOT"]
@@ -27,8 +30,20 @@ async def get_next_id():
     return counter["sequence_value"]
 
 async def get_random_image():
-    image = await db.Characters.aggregate([{"$sample": {"size": 1}}]).to_list(length=1)
+    current_time = datetime.utcnow()
+    image = await db.Characters.aggregate([
+        {
+            "$match": {
+                "$or": [
+                    {"expiry_time": {"$exists": False}},
+                    {"expiry_time": {"$gte": current_time}}
+                ]
+            }
+        },
+        {"$sample": {"size": 1}}
+    ]).to_list(length=1)
     return image[0] if image else None
+
 
 async def update_drop(group_id, image_id, image_name, image_url, smashed_by=None):
     await db.Drops.update_one(
@@ -96,21 +111,31 @@ async def get_all_images():
     return characters    
 
 
-# Add user to Banned collection
-async def ban_user(user_id):
+async def ban_user(user_id, duration_minutes=None):
+    if duration_minutes:
+        ban_until = datetime.utcnow() + timedelta(minutes=duration_minutes)
+    else:
+        ban_until = None
     await db.Banned.update_one(
         {"user_id": user_id},
-        {"$set": {"user_id": user_id}},
+        {"$set": {"user_id": user_id, "ban_until": ban_until}},
         upsert=True
     )
 
-# Remove user from Banned collection
 async def unban_user(user_id):
     await db.Banned.delete_one({"user_id": user_id})
 
-# Check if user is banned
 async def is_user_banned(user_id):
-    return await db.Banned.find_one({"user_id": user_id}) is not None
+    ban_record = await db.Banned.find_one({"user_id": user_id})
+    if ban_record:
+        if ban_record["ban_until"] and ban_record["ban_until"] > datetime.utcnow():
+            return True
+        elif not ban_record["ban_until"]:
+            return True
+        else:
+            await unban_user(user_id)
+            return False
+    return False
 
 # Add user to Sudo collection
 async def add_sudo_user(user_id):
