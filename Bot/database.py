@@ -16,6 +16,7 @@ db.Preference = db["Preference"]
 db.Upreq = db["Upreq"]
 db.Gtreq = db["Gtreq"]
 db.Gtusers = db["Gtusers"]
+db.Users = db["Users"]
 
 async def get_character_details(image_id):
     return await db.Characters.find_one({"id": image_id})
@@ -152,3 +153,5 @@ async def remove_sudo_user(user_id):
 # Check if user is sudo
 async def is_user_sudo(user_id):
     return await db.Sudo.find_one({"user_id": user_id}) is not None
+
+

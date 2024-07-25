@@ -53,18 +53,32 @@ async def add_sudo(client: Client, message: Message):
         return
 
     user_id = int(message.command[1])
+    user = await client.get_users(user_id)
+    first_name = user.first_name
+
+    if await is_user_sudo(user_id):
+        await message.reply(f"**{first_name} already has sudo powers.**")
+        return
+
     await add_sudo_user(user_id)
-    await message.reply(f"**User with ID {user_id} has been added as a sudo user.**")
+    await message.reply(f"**{first_name} has been added as a sudo user.**")
 
 async def remove_sudo(client: Client, message: Message):
     if message.from_user.id != BOT_OWNER:
-        await message.reply("You are not authorized to use this command.")
+        await message.reply("**You are not authorized to use this command.**")
         return
 
     if len(message.command) < 2:
-        await message.reply("Please provide a user ID.")
+        await message.reply("**Please provide a user ID.**")
         return
 
     user_id = int(message.command[1])
+    user = await client.get_users(user_id)
+    first_name = user.first_name
+
+    if not await is_user_sudo(user_id):
+        await message.reply(f"**{first_name} is already a normal user.**")
+        return
+
     await remove_sudo_user(user_id)
-    await message.reply(f"User with ID {user_id} has been removed as a sudo user.")
+    await message.reply(f"**{first_name} has been removed as a sudo user.**")

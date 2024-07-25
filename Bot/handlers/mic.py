@@ -1,8 +1,60 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from ..database import db
+from ..database import db, get_random_image, update_smashed_image
 from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from datetime import datetime, timedelta
+
+
+CLAIM_INTERVAL = timedelta(hours=24)
+
+async def claim(client: Client, message: Message):
+    user_id = message.from_user.id
+    user_data = await db.Users.find_one({"user_id": user_id})
+    
+    if user_data:
+        last_claim_time = user_data.get("last_claim_time")
+        if last_claim_time and datetime.utcnow() - last_claim_time < CLAIM_INTERVAL:
+            time_remaining = last_claim_time + CLAIM_INTERVAL - datetime.utcnow()
+            hours, remainder = divmod(time_remaining.total_seconds(), 3600)
+            minutes, _ = divmod(remainder, 60)
+            await message.reply(f"**You can claim your next character in {int(hours)}h {int(minutes)}m.**")
+            return
+
+    # Fetch a random character
+    random_character = await get_random_image()
+    if not random_character:
+        await message.reply("No characters available for claiming at the moment. Please try again later.")
+        return
+
+    # Update user's collection
+    await update_smashed_image(user_id, random_character["id"], message.from_user.first_name)
+    await db.Users.update_one(
+        {"user_id": user_id},
+        {"$set": {"last_claim_time": datetime.utcnow()}},
+        upsert=True
+    )
+    
+    # Prepare and send the message with the character's image and caption
+    img_url = random_character["img_url"]
+    user_mention = message.from_user.mention
+    caption = (
+        f"**🫧 {user_mention} you got a new character!**\n\n"
+        f"✨**Name**: {random_character['name']}\n"
+        f"{random_character['rarity_sign']} **Rarity**: {random_character['rarity']}\n"
+        f"🍁**Anime**: {random_character['anime']}\n\n"
+        f"🆔: {random_character['id']}"
+    )
+    
+    await client.send_photo(
+        chat_id=message.chat.id,
+        photo=img_url,
+        caption=caption
+    )
+
+# Register the command handler
+async def claim_handler(client, message: Message):
+    await claim(client, message)
 
 
 

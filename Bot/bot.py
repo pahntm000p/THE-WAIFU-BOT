@@ -8,8 +8,8 @@ from .handlers.upload import upload, edit_character
 from .handlers.inliner import inline_query_handler
 from .handlers.search import search, send_inline_query_button
 from .handlers.drop import droptime, check_message_count, handle_new_member
-from .handlers.smash import smash_image
-from .handlers.collection import smashes
+from .handlers.smash import smash_image 
+from .handlers.collection import smashes , paginate_collection
 from .handlers.gift import gift_character, confirm_gift, cancel_gift
 from .handlers.trade import initiate_trade, handle_trade_callback
 from .handlers.daan import daan
@@ -18,7 +18,7 @@ from .handlers.privacy import ban, unban, add_sudo, remove_sudo
 from .database import is_user_banned, is_user_sudo
 from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel
 from .handlers.leaderboard import top, stop
-from .handlers.mic import check_character , sstatus , show_smashers
+from .handlers.mic import check_character , sstatus , show_smashers , claim_handler
 from .handlers.upreq import upreq, handle_callback
 from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
 
@@ -66,7 +66,7 @@ app.on_message(filters.command("smtop") & command_filter)(stop)
 app.on_message(filters.command("check") & filters.group & command_filter)(check_character)
 app.on_message(filters.command("upreq") & command_filter)(upreq)
 app.on_message(filters.command("sstatus") & command_filter)(sstatus)
-
+app.on_message(filters.command("claim") &  command_filter)(claim_handler)
 
 #Gtrade
 app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
@@ -94,6 +94,7 @@ app.on_callback_query(filters.regex(r"^smode_rarity:[^:]+:\d+$"))(smode_rarity)
 app.on_callback_query(filters.regex(r"^smode_close:\d+$"))(smode_close)
 app.on_callback_query(filters.regex(r"^(approve_upreq|decline_upreq):"))(handle_callback)
 app.add_handler(CallbackQueryHandler(show_smashers, filters.regex(r"^show_smashers_")))
+app.add_handler(CallbackQueryHandler(paginate_collection, filters.regex(r"^page_(\d+)_(\d+)$")))
 
 
 # Register the new member handler for setting default droptime
