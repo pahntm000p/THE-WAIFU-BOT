@@ -8,7 +8,11 @@ async def get_character_details(image_id):
 
 async def get_smode_preference(user_id):
     preference = await db.Preference.find_one({"user_id": user_id})
-    return preference["smode"] if preference else "Default"
+    if preference and "smode" in preference:
+        return preference["smode"]
+    else:
+        return "Default"  # Return a default value if 'smode' is not found
+
 
 async def set_fav(client: Client, message: Message):
     user_id = message.from_user.id
@@ -47,6 +51,9 @@ async def set_fav(client: Client, message: Message):
         )
     )
 
+
+
+
 async def unfav(client: Client, message: Message):
     user_id = message.from_user.id
 
@@ -57,7 +64,10 @@ async def unfav(client: Client, message: Message):
 
 async def get_fav_character(user_id):
     fav_entry = await db.Preference.find_one({"user_id": user_id})
-    return fav_entry["fav_character_id"] if fav_entry else None
+    if fav_entry and "fav_character_id" in fav_entry:
+        return fav_entry["fav_character_id"]
+    else:
+        return None
 
 # Callback query handler for confirming favorite character
 async def fav_confirm(client: Client, callback_query: CallbackQuery):
@@ -134,7 +144,7 @@ async def smode_default(client: Client, callback_query: CallbackQuery):
     )
 
     await callback_query.message.edit_text(
-        "Your smashes interface has been set to: Default",
+        "**Your smashes interface has been set to: Default**",
         reply_markup=None
     )
 
@@ -151,7 +161,7 @@ async def smode_sort(client: Client, callback_query: CallbackQuery):
     smode_preference = await get_smode_preference(user_id)
 
     await callback_query.message.edit_text(
-        f"Your Harem Sort Smashes is set to: {smode_preference}",
+        f"**Your Harem Sort Smashes is set to: {smode_preference}**",
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("🟡 Legendary", callback_data=f"smode_rarity:Legendary:{user_id}")],
@@ -197,3 +207,49 @@ async def smode_close(client: Client, callback_query: CallbackQuery):
     await callback_query.message.delete()
 
     await callback_query.answer("Operation canceled.")
+
+
+
+async def set_cmode(client: Client, message: Message):
+    user_id = message.from_user.id
+
+    await client.send_message(
+        chat_id=message.chat.id,
+        text="**Please select your caption mode:**",
+        reply_markup=InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("Caption-1", callback_data=f"cmode_select:{user_id}:Caption 1"),
+                    InlineKeyboardButton("Caption-2", callback_data=f"cmode_select:{user_id}:Caption 2"),
+                    InlineKeyboardButton("Close", callback_data=f"cmode_close:{user_id}")
+                ]
+            ]
+        )
+    )
+
+async def cmode_select(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    data = callback_query.data.split(":")
+    selected_mode = data[2]
+
+    if int(data[1]) != user_id:
+        await callback_query.answer("You are not authorized to perform this action.", show_alert=True)
+        return
+
+    await db.Preference.update_one(
+        {"user_id": user_id},
+        {"$set": {"icaption": selected_mode}},
+        upsert=True
+    )
+
+    await callback_query.edit_message_text(f"**Your Inliner-Caption preference has been set to {selected_mode}.**")
+
+async def cmode_close(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    data = callback_query.data.split(":")
+
+    if int(data[1]) != user_id:
+        await callback_query.answer("You are not authorized to perform this action.", show_alert=True)
+        return
+
+    await callback_query.message.delete()

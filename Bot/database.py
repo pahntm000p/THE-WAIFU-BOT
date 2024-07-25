@@ -154,4 +154,6 @@ async def remove_sudo_user(user_id):
 async def is_user_sudo(user_id):
     return await db.Sudo.find_one({"user_id": user_id}) is not None
 
-
+async def get_icaption_preference(user_id):
+    preference = await db.Preference.find_one({"user_id": user_id})
+    return preference.get("icaption", "Caption 1") if preference else "Caption 1"
