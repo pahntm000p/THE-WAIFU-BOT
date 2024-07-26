@@ -1,6 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from ..database import db, get_random_image, update_smashed_image
+from ..database import db, get_random_character, update_smashed_image
 from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
@@ -22,10 +22,12 @@ async def claim(client: Client, message: Message):
             return
 
     # Fetch a random character
-    random_character = await get_random_image()
+    random_character = await get_random_character()
     if not random_character:
         await message.reply("No characters available for claiming at the moment. Please try again later.")
         return
+
+    random_character = random_character[0]
 
     # Update user's collection
     await update_smashed_image(user_id, random_character["id"], message.from_user.first_name)
@@ -51,7 +53,6 @@ async def claim(client: Client, message: Message):
         photo=img_url,
         caption=caption
     )
-
 # Register the command handler
 async def claim_handler(client, message: Message):
     await claim(client, message)

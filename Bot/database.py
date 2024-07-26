@@ -30,21 +30,8 @@ async def get_next_id():
     )
     return counter["sequence_value"]
 
-async def get_random_image():
-    current_time = datetime.utcnow()
-    image = await db.Characters.aggregate([
-        {
-            "$match": {
-                "$or": [
-                    {"expiry_time": {"$exists": False}},
-                    {"expiry_time": {"$gte": current_time}}
-                ]
-            }
-        },
-        {"$sample": {"size": 1}}
-    ]).to_list(length=1)
-    return image[0] if image else None
-
+async def get_random_character():
+    return await db.Characters.aggregate([{"$sample": {"size": 1}}]).to_list(1)
 
 async def update_drop(group_id, image_id, image_name, image_url, smashed_by=None):
     await db.Drops.update_one(

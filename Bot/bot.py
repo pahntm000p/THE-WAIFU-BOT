@@ -2,7 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from telegram.ext import ApplicationBuilder
 from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
-from .config import api_id, api_hash, bot_token, OWNER_ID as BOT_OWNER
+from .config import OWNER_ID as BOT_OWNER
 from .handlers.start import start
 from .handlers.upload import upload, edit_character
 from .handlers.inliner import inline_query_handler
@@ -21,11 +21,10 @@ from .handlers.leaderboard import top, stop
 from .handlers.mic import check_character , sstatus , show_smashers , claim_handler
 from .handlers.upreq import upreq, handle_callback
 from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
+from . import app , pbot
 
 
 
-# Pyrogram Client instance
-app = Client("my_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
 # Custom filter to check if a user is banned
 async def command_filter(_, __, message: Message):
@@ -108,26 +107,11 @@ non_command_filter = filters.group & ~filters.regex(r"^/")
 # Register message handler with non-command filter
 app.on_message((filters.text | filters.media | filters.sticker ) & filters.group & command_filter)(check_message_count)
 
-# PYTHON-TELEGRAM-BOT Instance
-pbot = ApplicationBuilder().token(bot_token).build()
-
-# Add the callback query handler to your application
-# Assuming `pbot` is your ApplicationBuilder instance from the previous code
-pbot.add_handler(inline_query_handler)
 
 
-def run_pyro_bot():
-    app.run()
 
-def run_telegram_bot():
-    pbot.run_polling()
 
-def main():
-    from multiprocessing import Process
-
-    p1 = Process(target=run_pyro_bot)
-    p2 = Process(target=run_telegram_bot)
-    p1.start()
-    p2.start()
-    p1.join()
-    p2.join()
+def main() -> None:
+    """Run bot."""
+    pbot.add_handler(inline_query_handler)
+    pbot.run_polling(drop_pending_updates=True)

@@ -3,7 +3,8 @@ import time
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
 from pyrogram.enums import ChatMemberStatus
-from ..database import get_random_image, update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned
+from ..database import  update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned
+from ..database import get_random_character
 from ..config import OWNER_ID
 import requests
 from io import BytesIO
@@ -78,23 +79,24 @@ async def check_message_count(client: Client, message: Message):
 
             if current_count >= msg_count:
                 current_count = 0
-                image_doc = await get_random_image()
-                if not image_doc:
-                    await client.send_message(group_id, "No images available to drop.")
+                character_doc = await get_random_character()
+                if not character_doc:
+                    await client.send_message(group_id, "No characters available to drop.")
                     return
 
-                image_id = image_doc["id"]
-                image_url = image_doc["img_url"]
-                image_name = image_doc["name"]
+                character = character_doc[0]
+                character_id = character["id"]
+                character_url = character["img_url"]
+                character_name = character["name"]
 
                 try:
-                    response = requests.get(image_url)
+                    response = requests.get(character_url)
                     response.raise_for_status()
 
                     image_data = BytesIO(response.content)
-                    image_data.name = image_url.split("/")[-1]
+                    image_data.name = character_url.split("/")[-1]
 
-                    await update_drop(group_id, image_id, image_name, image_url)
+                    await update_drop(group_id, character_id, character_name, character_url)
 
                     caption = f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name"
                     await client.send_photo(group_id, image_data, caption=caption)
