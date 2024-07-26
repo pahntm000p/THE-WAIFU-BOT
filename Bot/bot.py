@@ -5,7 +5,7 @@ from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
 from .config import OWNER_ID as BOT_OWNER
 from .handlers.start import start
 from .handlers.upload import upload, edit_character
-from .handlers.inliner import inline_query_handler
+from .handlers.inliner import inline_query_handler, smasher_callback_handler
 from .handlers.search import search, send_inline_query_button
 from .handlers.drop import droptime, check_message_count, handle_new_member
 from .handlers.smash import smash_image 
@@ -114,4 +114,5 @@ app.on_message((filters.text | filters.media | filters.sticker ) & filters.group
 def main() -> None:
     """Run bot."""
     pbot.add_handler(inline_query_handler)
+    pbot.add_handler(smasher_callback_handler)
     pbot.run_polling(drop_pending_updates=True)
