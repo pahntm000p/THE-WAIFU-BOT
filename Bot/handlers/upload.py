@@ -4,7 +4,9 @@ from pyrogram.enums import ParseMode
 from Bot.database import db, get_next_id
 from datetime import datetime, timedelta
 import re
-from Bot.config import SUPPORT_CHAT_ID
+from Bot.config import SUPPORT_CHAT_ID , OWNER_ID
+from ..database import is_user_sudo  # Ensure is_user_sudo is correctly imported
+
 
 RARITY_MAPPING = {
     "1": {"name": "Common", "sign": "⚪️"},
@@ -326,4 +328,49 @@ async def finalize_edit(client: Client, chat_id: int, user_id: int):
         if user_id in edit_data:
             del edit_data[user_id]
 
+
+
+async def delete_character(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id != OWNER_ID and not await is_user_sudo(user_id):
+        await message.reply_text("🚫 This command is restricted to the bot owner and sudo users.")
+        return
+    
+    params = message.text.split()
+    if len(params) < 2:
+        await message.reply("Usage: /delete {id}")
+        return
+    
+    char_id = params[1]
+    if not re.match(r"^\d+$", char_id):
+        await message.reply("Character ID must be a numeric value.")
+        return
+    
+    character = await db.Characters.find_one({"id": char_id})
+    if not character:
+        await message.reply(f"No character found with ID {char_id}.")
+        return
+
+    # Log the deletion in the support chat
+    user = await client.get_users(user_id)
+    user_mention = f"<a href='tg://user?id={user_id}'>{user.first_name}</a>"
+    await client.send_photo(
+        SUPPORT_CHAT_ID,
+        character.get('img_url', ''),
+        caption=f"<b>{user_mention} deleted the character:</b>\n\n"
+                f"🐼 Name: {character.get('name', 'Unknown')}\n"
+                f"🌺 Anime: {character.get('anime', 'Unknown')}\n"
+                f"{character.get('rarity_sign', '❓')} Rarity: {character.get('rarity', 'Unknown')}\n"
+                f"🪪 ID: {char_id}",
+        parse_mode=ParseMode.HTML
+    )
+    
+    # Delete the character
+    await db.Characters.delete_one({"id": char_id})
+    await message.reply_text(f"Character with ID {char_id} deleted successfully.")
+
+def add_delete_handler(app: Client):
+    @app.on_message(filters.command("delete"))
+    async def handle_delete(client: Client, message: Message):
+        await delete_character(client, message)
 

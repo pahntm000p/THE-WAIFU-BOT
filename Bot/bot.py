@@ -22,8 +22,8 @@ from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callb
 from . import app, pbot
 from .handlers.upload import start_upload, process_upload_step, set_rarity, cancel_upload, upload_data
 from .handlers.upload import start_edit, select_field, set_edit_rarity, cancel_edit, process_edit_step, edit_data
-
-
+from .handlers.ping import add_ping_handler  # Import the add_ping_handler function
+from .handlers.upload import add_delete_handler
 
 # Custom filter to check if a user is banned
 async def command_filter(_, __, message: Message):
@@ -68,6 +68,9 @@ app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmod
 app.on_message(filters.command("claim") & filters.private)(claim_handler)
 app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
+# Add the ping handler
+add_ping_handler(app)
+add_delete_handler(app)  # Add the delete handler
 
 # Gtrade
 app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
