@@ -6,7 +6,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
 from ..config import OWNER_ID
 from pyrogram.enums import ChatMemberStatus
-
+import os 
 
 CLAIM_INTERVAL = timedelta(hours=24)
 
@@ -345,3 +345,20 @@ async def sstatus(client: Client, message: Message):
         await message.reply(status_message)
 
 
+async def send_logs(client: Client, message: Message):
+    if message.from_user.id != OWNER_ID:
+        await message.reply_text("🚫 This command is restricted to the bot owner.")
+        return
+
+    log_file_path = "bot.log"
+    
+    if not os.path.exists(log_file_path):
+        await message.reply_text("No log file found.")
+        return
+
+    await message.reply_document(log_file_path)
+
+def add_logs_handler(app: Client):
+    @app.on_message(filters.command("logs"))
+    async def handle_logs(client: Client, message: Message):
+        await send_logs(client, message)

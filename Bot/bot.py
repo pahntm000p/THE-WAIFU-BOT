@@ -24,6 +24,9 @@ from .handlers.upload import start_upload, process_upload_step, set_rarity, canc
 from .handlers.upload import start_edit, select_field, set_edit_rarity, cancel_edit, process_edit_step, edit_data
 from .handlers.ping import add_ping_handler  # Import the add_ping_handler function
 from .handlers.upload import add_delete_handler
+from .handlers.mic import add_logs_handler
+
+
 
 # Custom filter to check if a user is banned
 async def command_filter(_, __, message: Message):
@@ -71,6 +74,7 @@ app.on_message(filters.command("managegrpids") & filters.private)(manage_group_i
 # Add the ping handler
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler
+add_logs_handler(app)  # Add the logs handler
 
 # Gtrade
 app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
