@@ -43,11 +43,11 @@ async def sinfo(client: Client, message: Message):
             recent_characters = "No characters smashed."
 
         response_text = (
-            f"**User Info**\n"
+            f"⟶⟶⟶⟶⟶**User Info**⟵⟵⟵⟵⟵\n"
             f"**Name**: {user.first_name}\n"
             f"**Username**: @{user.username}\n"
             f"**User ID**: {user.id}\n\n"
-            f"----**Character Stats**----\n"
+            f"**Character Stats**\n"
             f"**Total Characters**: {total_characters}\n\n"
             f"**| Recent Characters |**\n"
             f"{recent_characters}"

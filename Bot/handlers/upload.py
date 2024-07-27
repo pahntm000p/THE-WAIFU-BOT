@@ -32,7 +32,6 @@ async def cancel_upload(client: Client, callback_query: CallbackQuery):
     if user_id in upload_data:
         await client.delete_messages(callback_query.message.chat.id, upload_data[user_id]["last_message_id"])
         del upload_data[user_id]
-    await callback_query.message.edit_text("Upload cancelled.")
 
 async def process_upload_step(client: Client, message: Message):
     user_id = message.from_user.id
@@ -203,7 +202,6 @@ async def cancel_edit(client: Client, callback_query: CallbackQuery):
     if user_id in edit_data:
         await client.delete_messages(callback_query.message.chat.id, edit_data[user_id]["last_message_id"])
         del edit_data[user_id]
-    await callback_query.message.edit_text("Edit cancelled.")
 
 async def select_field(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
