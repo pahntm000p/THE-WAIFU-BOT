@@ -24,7 +24,7 @@ async def update_user_collection(user_id, updated_images):
 
 async def initiate_trade(client: Client, message: Message):
     if len(message.command) != 3:
-        await message.reply("Usage: /trade {Your Character ID} {User's Character ID}, reply to the user you want to trade with.")
+        await message.reply("**Usage: /trade Your_Character_ID User's_Character_ID, reply to the user you want to trade with.**")
         return
 
     char_a_id = message.command[1]

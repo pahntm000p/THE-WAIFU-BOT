@@ -1,5 +1,5 @@
 from pyrogram import Client, filters
-from ..database import get_drop, update_smashed_image, update_drop
+from ..database import get_drop, update_smashed_image, update_drop, get_character_details
 from pyrogram.types import Message
 
 async def smash_image(client: Client, message: Message):
@@ -24,18 +24,40 @@ async def smash_image(client: Client, message: Message):
         smashed_user = await client.get_users(drop["smashed_by"])
         smashed_user_mention = smashed_user.mention if smashed_user else f"User ID: {drop['smashed_by']}"
 
-        await message.reply(f"{smashed_user_mention} has already smashed this character!")
+        await message.reply(f"**ℹ Last character was already smashed by {smashed_user_mention} !!**")
         return
 
     # Check if the guessed name is correct
-    if guessed_name.lower() == drop["image_name"].strip().lower():
+    if guessed_name == drop["image_name"].strip().lower():
+        # Fetch additional details from the Characters collection
+        character = await get_character_details(drop["image_id"])
+        if not character:
+            await message.reply("**Character details not found in the database.**")
+            return
+
         # Update the smashed image in the user's collection
         await update_smashed_image(user_id, drop["image_id"], message.from_user.mention)
-        
+
         # Update the drop to indicate it has been smashed
         await update_drop(group_id, drop["image_id"], drop["image_name"], drop["image_url"], smashed_by=user_id)
 
-        await message.reply(f"Congratulations {message.from_user.mention}, you have smashed {drop['image_name']}!")
+        # Send success message with character details
+        rarity_sign = character.get("rarity_sign", "")
+        rarity = character.get("rarity", "")
+        anime = character.get("anime", "")
+        await message.reply(
+            f"**🎯 You Successfully Smashed A Character !!\n\n"
+            f"✨ Name : {drop['image_name']}\n"
+            f"{rarity_sign} Rarity : {rarity}\n"
+            f"🍁 Anime : {anime}\n\n"
+            f"You Can Take A Look At Your Collection Using /smashes**"
+        )
     else:
-        await message.reply("Incorrect name. Try again!")
+        # Send incorrect guess message with a link to the dropped image
+        dropped_image_link = drop.get("dropped_image_link", "")
+        await message.reply(
+            f"**❌ Incorrect guess : {guessed_name}!!**\n\n"
+            f"**Please try again [🔼]({dropped_image_link})**",
+            disable_web_page_preview=True
+        )
 

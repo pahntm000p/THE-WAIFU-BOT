@@ -33,12 +33,22 @@ async def get_next_id():
 async def get_random_character():
     return await db.Characters.aggregate([{"$sample": {"size": 1}}]).to_list(1)
 
-async def update_drop(group_id, image_id, image_name, image_url, smashed_by=None):
+async def update_drop(group_id, image_id, image_name, image_url, dropped_image_link=None, smashed_by=None):
+    update_data = {
+        "image_id": image_id,
+        "image_name": image_name,
+        "image_url": image_url,
+        "smashed_by": smashed_by
+    }
+    if dropped_image_link:
+        update_data["dropped_image_link"] = dropped_image_link
+
     await db.Drops.update_one(
         {"group_id": group_id},
-        {"$set": {"image_id": image_id, "image_name": image_name, "image_url": image_url, "smashed_by": smashed_by}},
+        {"$set": update_data},
         upsert=True
     )
+
 
 async def get_drop(group_id):
     return await db.Drops.find_one({"group_id": group_id})

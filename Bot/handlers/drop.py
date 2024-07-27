@@ -3,8 +3,7 @@ import time
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
 from pyrogram.enums import ChatMemberStatus
-from ..database import  update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned
-from ..database import get_random_character
+from ..database import update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned, get_random_character
 from ..config import OWNER_ID
 import requests
 from io import BytesIO
@@ -96,10 +95,17 @@ async def check_message_count(client: Client, message: Message):
                     image_data = BytesIO(response.content)
                     image_data.name = character_url.split("/")[-1]
 
-                    await update_drop(group_id, character_id, character_name, character_url)
+                    # Send the photo and capture the message response
+                    photo_message = await client.send_photo(group_id, image_data, caption=f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name")
 
-                    caption = f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name"
-                    await client.send_photo(group_id, image_data, caption=caption)
+                    # Construct the message link
+                    chat_id = photo_message.chat.id
+                    message_id = photo_message.id
+                    message_link = f"https://t.me/c/{str(chat_id)[4:]}/{message_id}"
+
+                    # Update the drop with the message link
+                    await update_drop(group_id, character_id, character_name, character_url, message_link)
+
                 except requests.exceptions.RequestException as e:
                     await client.send_message(group_id, f"Failed to download the image: {e}")
 
