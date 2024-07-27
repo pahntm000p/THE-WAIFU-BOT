@@ -4,13 +4,47 @@ from ..database import db, get_random_character, update_smashed_image
 from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
+from ..config import OWNER_ID
+from pyrogram.enums import ChatMemberStatus
 
 
 CLAIM_INTERVAL = timedelta(hours=24)
 
+async def is_subscribed(client: Client, user_id: int, group_id: int) -> bool:
+    try:
+        member = await client.get_chat_member(group_id, user_id)
+        return member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.OWNER]
+    except Exception as e:
+        print(f"Error checking subscription status: {e}")
+        return False
+
+async def get_chat_username(client: Client, chat_id: int) -> str:
+    try:
+        chat = await client.get_chat(chat_id)
+        return chat.username
+    except Exception as e:
+        print(f"Error fetching chat username: {e}")
+        return None
+
 async def claim(client: Client, message: Message):
     user_id = message.from_user.id
     user_data = await db.Users.find_one({"user_id": user_id})
+    
+    # Check if force-subscription is enabled
+    force_sub = await db.Settings.find_one({"setting": "force_sub"})
+    if force_sub and force_sub.get("enabled"):
+        group_ids = force_sub.get("group_ids", [])
+        buttons = []
+        for group_id in group_ids:
+            if not await is_subscribed(client, user_id, group_id):
+                chat_username = await get_chat_username(client, group_id)
+                if chat_username:
+                    buttons.append(InlineKeyboardButton(text="Join Group", url=f"https://t.me/{chat_username}"))
+        
+        if buttons:
+            keyboard = InlineKeyboardMarkup([buttons])
+            await message.reply("**Please join our groups and try again !**", reply_markup=keyboard)
+            return
     
     if user_data:
         last_claim_time = user_data.get("last_claim_time")
@@ -18,13 +52,13 @@ async def claim(client: Client, message: Message):
             time_remaining = last_claim_time + CLAIM_INTERVAL - datetime.utcnow()
             hours, remainder = divmod(time_remaining.total_seconds(), 3600)
             minutes, _ = divmod(remainder, 60)
-            await message.reply(f"**You can claim your next character in {int(hours)}h {int(minutes)}m.**")
+            await message.reply(f"⏳ **You can claim your next character in {int(hours)}h {int(minutes)}m.**")
             return
 
     # Fetch a random character
     random_character = await get_random_character()
     if not random_character:
-        await message.reply("No characters available for claiming at the moment. Please try again later.")
+        await message.reply("🚫 No characters available for claiming at the moment. Please try again later.")
         return
 
     random_character = random_character[0]
@@ -42,9 +76,9 @@ async def claim(client: Client, message: Message):
     user_mention = message.from_user.mention
     caption = (
         f"**🫧 {user_mention} you got a new character!**\n\n"
-        f"✨**Name**: {random_character['name']}\n"
+        f"✨ **Name**: {random_character['name']}\n"
         f"{random_character['rarity_sign']} **Rarity**: {random_character['rarity']}\n"
-        f"🍁**Anime**: {random_character['anime']}\n\n"
+        f"🍁 **Anime**: {random_character['anime']}\n\n"
         f"🆔: {random_character['id']}"
     )
     
@@ -53,9 +87,68 @@ async def claim(client: Client, message: Message):
         photo=img_url,
         caption=caption
     )
+
+
 # Register the command handler
 async def claim_handler(client, message: Message):
     await claim(client, message)
+
+async def set_force_sub(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        await message.reply("🚫 You don't have the rights to perform this action.")
+        return
+    
+    if len(message.command) < 2:
+        await message.reply("⚠️ Please specify 'enable' or 'disable'.")
+        return
+    
+    action = message.command[1].lower()
+    if action not in ["enable", "disable"]:
+        await message.reply("⚠️ Invalid action. Please specify 'enable' or 'disable'.")
+        return
+    
+    enabled = action == "enable"
+    await db.Settings.update_one(
+        {"setting": "force_sub"},
+        {"$set": {"enabled": enabled}},
+        upsert=True
+    )
+    await message.reply(f"✅ Force-subscription has been {'enabled' if enabled else 'disabled'}.")
+
+
+# Command to add or remove group links for force-subscription
+async def manage_group_ids(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id != OWNER_ID:
+        await message.reply("🚫 You don't have the rights to perform this action.")
+        return
+    
+    if len(message.command) < 3:
+        await message.reply("⚠️ Please specify 'add' or 'remove' followed by the group IDs.")
+        return
+    
+    action = message.command[1].lower()
+    group_ids = [int(id) for id in message.command[2:]]
+
+    if action not in ["add", "remove"]:
+        await message.reply("⚠️ Invalid action. Please specify 'add' or 'remove'.")
+        return
+    
+    force_sub = await db.Settings.find_one({"setting": "force_sub"})
+    current_ids = force_sub.get("group_ids", []) if force_sub else []
+
+    if action == "add":
+        current_ids.extend(group_ids)
+    elif action == "remove":
+        current_ids = [id for id in current_ids if id not in group_ids]
+
+    await db.Settings.update_one(
+        {"setting": "force_sub"},
+        {"$set": {"group_ids": current_ids}},
+        upsert=True
+    )
+    await message.reply(f"✅ Group IDs have been successfully {'added' if action == 'add' else 'removed'}.")
 
 
 

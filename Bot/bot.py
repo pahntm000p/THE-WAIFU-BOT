@@ -16,7 +16,7 @@ from .handlers.privacy import ban, unban, add_sudo, remove_sudo , sudoers
 from .database import is_user_banned, is_user_sudo
 from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel, set_cmode, cmode_close, cmode_select
 from .handlers.leaderboard import top, stop
-from .handlers.mic import check_character, sstatus, show_smashers, claim_handler
+from .handlers.mic import check_character, sstatus, show_smashers, claim_handler , set_force_sub , manage_group_ids
 from .handlers.upreq import upreq, handle_callback
 from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
 from . import app, pbot
@@ -61,10 +61,12 @@ app.on_message(filters.command("smtop") & command_filter)(stop)
 app.on_message(filters.command("check") & filters.group & command_filter)(check_character)
 app.on_message(filters.command("upreq") & command_filter)(upreq)
 app.on_message(filters.command("sstatus") & command_filter)(sstatus)
-app.on_message(filters.command("claim") &  command_filter)(claim_handler)
 app.on_message(filters.command("cmode") & command_filter)(set_cmode)
 app.on_callback_query(filters.regex(r"^cmode_select:\d+:") & command_filter)(cmode_select)
 app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmode_close)
+app.on_message(filters.command("claim") & filters.private)(claim_handler)
+app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
+app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
 
 # Gtrade
 app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
