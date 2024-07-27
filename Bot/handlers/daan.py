@@ -1,10 +1,11 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
-from ..database import get_all_images, update_smashed_image
+from ..database import get_all_images, update_smashed_image, is_user_sudo
 from ..config import OWNER_ID as BOT_OWNER
 
 async def daan(client: Client, message: Message):
-    if message.from_user.id != BOT_OWNER:
+    user_id = message.from_user.id
+    if user_id != BOT_OWNER and not await is_user_sudo(user_id):
         await message.reply("You are not authorized to use this command.")
         return
 
@@ -18,8 +19,8 @@ async def daan(client: Client, message: Message):
         await message.reply("Please provide a valid number for the amount.")
         return
 
-    user_id = message.reply_to_message.from_user.id
-    user = await client.get_users(user_id)
+    reply_user_id = message.reply_to_message.from_user.id
+    user = await client.get_users(reply_user_id)
 
     if user.is_bot:
         await message.reply("You cannot give characters to a bot.")
@@ -36,6 +37,6 @@ async def daan(client: Client, message: Message):
     images_to_give = (all_images * (amount // len(all_images) + 1))[:amount]
 
     for image in images_to_give:
-        await update_smashed_image(user_id, image["id"], message.reply_to_message.from_user.mention)
+        await update_smashed_image(reply_user_id, image["id"], message.reply_to_message.from_user.mention)
 
     await message.reply(f"Successfully given {amount} characters to {message.reply_to_message.from_user.mention}.")

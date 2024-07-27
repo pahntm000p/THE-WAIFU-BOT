@@ -6,9 +6,8 @@ from telegram.ext import InlineQueryHandler, CallbackQueryHandler, ContextTypes
 from Bot.database import db
 from telegram.constants import ParseMode
 
-
-async def get_character_details(image_id):
-    character = await db.Characters.find_one({"id": image_id})
+async def get_character_details(character_id):
+    character = await db.Characters.find_one({"id": character_id})
     return character
 
 def extract_name(user_name):
@@ -48,68 +47,53 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                     if icaption_preference == "Caption 1":
                         caption = (
                             f"<b>Look at {user_name}'s smashed character !!</b>\n\n"
-                            f"✨<b>Name :</b> <b>{character['name']}</b>\n"
+                            f"✨<b>Name :</b> <b>{character['name']} | x{image['count']}</b>\n"
                             f"{character['rarity_sign']} <b>Rarity :</b> <b>{character['rarity']}</b>\n"
                             f"🍁<b>Anime :</b> <b>{character['anime']}</b>\n\n"
                             f"🆔 : <b>{character['id']}</b>"
                         )
                     else:
                         caption = (
-                                   f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
-                                   f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
-                                   f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
-                                  )
+                            f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
+                            f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
+                            f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
+                        )
                     result = InlineQueryResultPhoto(
-                        id=character["id"],
+                        id=str(character["id"]),
                         photo_url=character["img_url"],
                         thumbnail_url=character["img_url"],
                         caption=caption,
                         parse_mode='HTML'
                     )
                     results.append(result)
-        else:
-            pass
     else:
-        if query:
-            character = await db.Characters.find_one({"name": {"$regex": query, "$options": "i"}})
-            if character:
-                caption = (
-                    f"✨ <b>Name</b><b>:</b> <b>{character['name']}</b>\n"
-                    f"{character['rarity_sign']} <b>Rarity</b><b>:</b> <b>{character['rarity']}</b>\n"
-                    f"🍁 <b>Anime</b><b>:</b> <b>{character['anime']}</b>\n\n"
-                    f"🆔<b>:</b> <b>{character['id']}</b>"
-                )
-                button = InlineKeyboardButton("Smashers Here", callback_data=f"smasher:{character['id']}")
-                keyboard = InlineKeyboardMarkup([[button]])
-                result = InlineQueryResultPhoto(
-                    id=character["id"],
-                    photo_url=character["img_url"],
-                    thumbnail_url=character["img_url"],
-                    caption=caption,
-                    parse_mode='HTML',
-                    reply_markup=keyboard
-                )
-                results.append(result)
+        # Searching for characters by name or ID
+        characters = []
+        if query.isdigit() or re.match(r"^\d+$", query):
+            # Search by numeric string ID
+            characters = await db.Characters.find({"id": query}).to_list(length=100)
         else:
-            characters = await db.Characters.find().to_list(length=100)
-            for character in characters:
-                caption = (
-                    f"✨ <b>Name</b><b>:</b> <b>{character['name']}</b>\n"
-                    f"{character['rarity_sign']} <b>Rarity</b><b>:</b> <b>{character['rarity']}</b>\n"
-                    f"🍁 <b>Anime</b><b>:</b> <b>{character['anime']}</b>\n\n"
-                    f"🆔<b>:</b> <b>{character['id']}</b>"
-                )
-                button = InlineKeyboardButton("Smashers Here", callback_data=f"smasher:{character['id']}")
-                keyboard = InlineKeyboardMarkup([[button]])
-                result = InlineQueryResultPhoto(
-                    id=character["id"],
-                    photo_url=character["img_url"],
-                    thumbnail_url=character["img_url"],
-                    caption=caption,
-                    parse_mode='HTML',
-                    reply_markup=keyboard
-                )
-                results.append(result)
+            # Search by name using regex
+            characters = await db.Characters.find({"name": {"$regex": query, "$options": "i"}}).to_list(length=100)
+
+        for character in characters:
+            caption = (
+                f"✨ <b>Name</b><b>:</b> <b>{character['name']}</b>\n"
+                f"{character['rarity_sign']} <b>Rarity</b><b>:</b> <b>{character['rarity']}</b>\n"
+                f"🍁 <b>Anime</b><b>:</b> <b>{character['anime']}</b>\n\n"
+                f"🆔<b>:</b> <b>{character['id']}</b>"
+            )
+            button = InlineKeyboardButton("Smashers Here", callback_data=f"smasher:{character['id']}")
+            keyboard = InlineKeyboardMarkup([[button]])
+            result = InlineQueryResultPhoto(
+                id=str(character["id"]),
+                photo_url=character["img_url"],
+                thumbnail_url=character["img_url"],
+                caption=caption,
+                parse_mode='HTML',
+                reply_markup=keyboard
+            )
+            results.append(result)
 
     await update.inline_query.answer(results, cache_time=1)
 
@@ -144,9 +128,5 @@ async def smasher_callback(update, context):
 
     await query.edit_message_caption(new_caption, parse_mode='HTML')
 
-
-
-
 inline_query_handler = InlineQueryHandler(inline_query)
 smasher_callback_handler = CallbackQueryHandler(smasher_callback, pattern=r'^smasher:')
-

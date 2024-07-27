@@ -12,7 +12,7 @@ from .handlers.gift import gift_character, confirm_gift, cancel_gift
 from .handlers.trade import initiate_trade, handle_trade_callback
 from .handlers.daan import daan
 from .handlers.sinfo import sinfo, delete_collection, close_sinfo
-from .handlers.privacy import ban, unban, add_sudo, remove_sudo
+from .handlers.privacy import ban, unban, add_sudo, remove_sudo , sudoers
 from .database import is_user_banned, is_user_sudo
 from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel, set_cmode, cmode_close, cmode_select
 from .handlers.leaderboard import top, stop
@@ -47,6 +47,7 @@ app.on_message(filters.command("smashes") & command_filter)(smashes)
 app.on_message(filters.command("s") & filters.private & command_filter)(send_inline_query_button)
 app.on_message(filters.command("gift") & filters.group & filters.reply & command_filter)(gift_character)
 app.on_message(filters.command("daan") & sudo_filter)(daan)
+app.on_message(filters.command("sudoers") & filters.user(BOT_OWNER))(sudoers)
 app.on_message(filters.command("sinfo") & sudo_filter)(sinfo)
 app.on_message(filters.command("bang") & sudo_filter)(ban)
 app.on_message(filters.command("unbang") & sudo_filter)(unban)

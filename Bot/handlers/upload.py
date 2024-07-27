@@ -1,10 +1,11 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.enums import ParseMode
 from Bot.database import db, get_next_id
 from datetime import datetime, timedelta
 import re
 from Bot.config import SUPPORT_CHAT_ID
-from pyrogram.enums import ParseMode
+
 RARITY_MAPPING = {
     "1": {"name": "Common", "sign": "⚪️"},
     "2": {"name": "Rare", "sign": "🟠"},
@@ -92,7 +93,6 @@ async def process_upload_step(client: Client, message: Message):
 
 async def set_rarity(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
-    first_name = callback_query.from_user.first_name
     if user_id in upload_data:
         rarity = callback_query.data.split("_")[-1]
         upload_data[user_id]["rarity"] = rarity
@@ -108,7 +108,7 @@ async def set_rarity(client: Client, callback_query: CallbackQuery):
         else:
             await finalize_upload(client, callback_query.message.chat.id, user_id)
 
-async def finalize_upload(client: Client, chat_id: int, user_id: int , first_name:str):
+async def finalize_upload(client: Client, chat_id: int, user_id: int):
     data = upload_data[user_id]
     try:
         new_id = await get_next_id()
@@ -127,15 +127,24 @@ async def finalize_upload(client: Client, chat_id: int, user_id: int , first_nam
         await db.Characters.insert_one(character)
         expiry_message = f" for {expiry}" if expiry else ""
 
-        user_mention = f"<a href='tg://user?id={user_id}'>{first_name}</a>"
-        caption = (f"{user_mention} just uploaded a new character !!\n\n"
-                   f"**🐼 Name --> {data['name']}  | 🌺 Anime --> {data['anime']}\n"
-                   f"{RARITY_MAPPING[data['rarity']]['sign']} Rarity --> {RARITY_MAPPING[data['rarity']]['name']}  | 🪪 Id --> {new_id:02}**{expiry_message}")
+        user = await client.get_users(user_id)
+        user_mention = f"<a href='tg://user?id={user_id}'>{user.first_name}</a>"
+        caption = (f"<b>{user_mention} just uploaded a new character !!</b>\n\n"
+                   f"<b>🐼 Name : {data['name']}</b>\n"
+                   f"<b>🌺 Anime : {data['anime']}</b>\n"
+                   f"<b>{RARITY_MAPPING[data['rarity']]['sign']} Rarity : {RARITY_MAPPING[data['rarity']]['name']}</b>\n\n"
+                   f"<b>🪪  : {new_id:02} {expiry_message}</b>")
 
         await client.send_photo(
             SUPPORT_CHAT_ID, 
             data["img_url"], 
             caption=caption, 
+            parse_mode=ParseMode.HTML
+        )
+
+        await client.send_message(
+            chat_id,
+            f"<b>Character {data['name']} added successfully with ID {new_id:02} as {RARITY_MAPPING[data['rarity']]['name']} {RARITY_MAPPING[data['rarity']]['sign']}{expiry_message}.</b>",
             parse_mode=ParseMode.HTML
         )
     except Exception as e:
@@ -158,9 +167,19 @@ async def start_edit(client: Client, message: Message):
         await message.reply(f"No character found with ID {char_id}.")
         return
 
-    edit_data[message.from_user.id] = {"char_id": char_id, "old_character": character}
-    sent = await message.reply(
-        "Which field would you like to edit?",
+    # Prepare the caption with character details
+    caption = (
+        f"🐼 Name: {character.get('name', 'Unknown')}\n"
+        f"🌺 Anime: {character.get('anime', 'Unknown')}\n"
+        f"{character.get('rarity_sign', '❓')} Rarity: {character.get('rarity', 'Unknown')}\n"
+        f"🪪 ID: {char_id}\n\n"
+        "Select the field you want to edit:"
+    )
+
+    # Send the message with character details and inline buttons
+    sent = await message.reply_photo(
+        photo=character.get('img_url', ''),
+        caption=caption,
         reply_markup=InlineKeyboardMarkup(
             [
                 [InlineKeyboardButton("Image URL", callback_data="edit_field_img_url")],
@@ -171,7 +190,13 @@ async def start_edit(client: Client, message: Message):
             ]
         )
     )
-    edit_data[message.from_user.id]["last_message_id"] = sent.id
+
+    # Store necessary information in edit_data
+    edit_data[message.from_user.id] = {
+        "char_id": char_id,
+        "old_character": character,
+        "last_message_id": sent.id
+    }
 
 async def cancel_edit(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -261,24 +286,46 @@ async def finalize_edit(client: Client, chat_id: int, user_id: int):
         await db.Characters.update_one({"id": char_id}, {"$set": updates})
         await client.send_message(chat_id, f"Character with ID {char_id} updated successfully.")
 
-        user_mention = f"<a href='tg://user?id={user_id}'>{user_id}</a>"
-        for field, new_value in updates.items():
-            old_value = old_character.get(field)
-            if field == "img_url":
-                await client.send_photo(
-                    SUPPORT_CHAT_ID,
-                    new_value,
-                    caption=f"{user_mention} just updated the image of character with ID {char_id}",
-                    parse_mode=ParseMode.HTML
-                )
-            else:
-                await client.send_message(
-                    SUPPORT_CHAT_ID,
-                    f"{user_mention} just edited the {field} of character with ID {char_id} from {old_value} to {new_value}.",
-                    parse_mode=ParseMode.HTML
-                )
+        user = await client.get_users(user_id)
+        user_mention = f"<a href='tg://user?id={user_id}'>{user.first_name}</a>"
+
+        if "rarity" in updates:
+            old_rarity_sign = old_character['rarity_sign']
+            old_rarity = old_character['rarity']
+            new_rarity_sign = updates['rarity_sign']
+            new_rarity = updates['rarity']
+            await client.send_photo(
+                SUPPORT_CHAT_ID,
+                old_character['img_url'],
+                caption=(
+                    f"<b>{user_mention} has just updated the rarity of {old_character['name']} from:</b>\n\n"
+                    f"<b>{old_rarity_sign} {old_rarity} to {new_rarity_sign} {new_rarity}</b>"
+                ),
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            for field, new_value in updates.items():
+                old_value = old_character.get(field)
+                if field == "img_url":
+                    await client.send_photo(
+                        SUPPORT_CHAT_ID,
+                        new_value,
+                        caption=f"<b>{user_mention} just updated the image of character with ID {char_id}</b>",
+                        parse_mode=ParseMode.HTML
+                    )
+                else:
+                    await client.send_photo(
+                        SUPPORT_CHAT_ID,
+                        old_character['img_url'],
+                        caption=(
+                            f"<b>{user_mention} just edited the {field} of character with ID {char_id} from {old_value} to {new_value}.</b>"
+                        ),
+                        parse_mode=ParseMode.HTML
+                    )
     except Exception as e:
         await client.send_message(chat_id, f"An error occurred: {e}")
     finally:
         if user_id in edit_data:
             del edit_data[user_id]
+
+
