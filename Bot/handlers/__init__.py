@@ -21,4 +21,4 @@ from ..handlers.ping import add_ping_handler  # Import the add_ping_handler func
 from ..handlers.upload import add_delete_handler
 from ..handlers.mic import add_logs_handler
 from .eval import add_eval_handlers
-from .gitpull import git_pull , restart_bot
+from .restart import  restart_bot

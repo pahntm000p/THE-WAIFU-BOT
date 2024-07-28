@@ -49,7 +49,6 @@ app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmod
 app.on_message(filters.command("claim") & filters.private)(claim_handler)
 app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
-app.on_message(filters.command("smashpull") & filters.private)(git_pull)
 app.on_message(filters.command("restart") & filters.private)(restart_bot)
 add_eval_handlers(app)
 add_ping_handler(app)
