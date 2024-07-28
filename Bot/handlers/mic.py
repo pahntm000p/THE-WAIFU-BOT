@@ -8,6 +8,7 @@ from ..config import OWNER_ID
 from pyrogram.enums import ChatMemberStatus
 import os 
 
+BOT_OWNER = OWNER_ID
 CLAIM_INTERVAL = timedelta(hours=24)
 
 async def is_subscribed(client: Client, user_id: int, group_id: int) -> bool:
@@ -362,3 +363,47 @@ def add_logs_handler(app: Client):
     @app.on_message(filters.command("logs"))
     async def handle_logs(client: Client, message: Message):
         await send_logs(client, message)
+
+
+async def transfer_collection(client: Client, message: Message):
+    if message.from_user.id != BOT_OWNER:
+        await message.reply("You are not authorized to use this command.")
+        return
+
+    try:
+        from_user_id, to_user_id = map(int, message.command[1:])
+    except (ValueError, IndexError):
+        await message.reply("**Usage: /transfer from_user_id to_user_id**")
+        return
+
+    from_collection = await db.Collection.find_one({"user_id": from_user_id})
+    to_collection = await db.Collection.find_one({"user_id": to_user_id})
+
+    if not from_collection:
+        await message.reply("The source user does not have any collection.")
+        return
+
+    if not to_collection:
+        to_collection = {"user_id": to_user_id, "images": []}
+
+    # Merge the collections
+    to_images = {img["image_id"]: img for img in to_collection["images"]}
+    for img in from_collection["images"]:
+        if img["image_id"] in to_images:
+            to_images[img["image_id"]]["count"] += img["count"]
+        else:
+            to_images[img["image_id"]] = img
+
+    to_collection["images"] = list(to_images.values())
+
+    # Update the target user's collection in the database
+    await db.Collection.update_one(
+        {"user_id": to_user_id},
+        {"$set": to_collection},
+        upsert=True
+    )
+
+    # Remove the source user's collection from the database
+    await db.Collection.delete_one({"user_id": from_user_id})
+
+    await message.reply("**Collection successfully transferred.**")

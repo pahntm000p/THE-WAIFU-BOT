@@ -3,7 +3,7 @@ from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, 
 from ..database import db
 from .preference import get_character_details, get_fav_character, get_smode_preference
 
-ITEMS_PER_PAGE = 10
+ITEMS_PER_PAGE = 5
 
 async def smashes(client: Client, message: Message):
     user_id = message.from_user.id

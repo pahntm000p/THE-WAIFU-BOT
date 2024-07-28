@@ -3,6 +3,7 @@ from pyrogram.types import Message
 from ..database import ban_user, unban_user, is_user_banned, add_sudo_user, remove_sudo_user, is_user_sudo
 from ..config import OWNER_ID as BOT_OWNER
 from ..database import db
+
 async def ban(client: Client, message: Message):
     if message.from_user.id != BOT_OWNER and not await is_user_sudo(message.from_user.id):
         await message.reply("**You are not authorized to use this command.**")

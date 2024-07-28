@@ -2,6 +2,8 @@ import motor.motor_asyncio
 from .config import MONGO_URL
 from datetime import datetime
 from datetime import datetime, timedelta
+import json
+import os
 
 
 client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URL)
@@ -17,6 +19,9 @@ db.Upreq = db["Upreq"]
 db.Gtreq = db["Gtreq"]
 db.Gtusers = db["Gtusers"]
 db.Users = db["Users"]
+
+
+
 
 async def get_character_details(image_id):
     return await db.Characters.find_one({"id": image_id})

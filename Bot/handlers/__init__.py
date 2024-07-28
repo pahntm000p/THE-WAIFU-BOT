@@ -24,3 +24,5 @@ from .eval import add_eval_handlers
 from .restart import  restart_bot
 from .leaderboard import ctop , tdtop
 from .broadcast import handle_broadcast
+from .mic import transfer_collection
+from .privacy import handle_backup , handle_restore , handle_delete_data

@@ -6,6 +6,7 @@ from . import app, pbot
 from .handlers import *
 from Bot.database import db, get_next_anime_id
 
+
 # Custom filter to check if a user is banned
 async def command_filter(_, __, message: Message):
     if await is_user_banned(message.from_user.id):
@@ -34,7 +35,6 @@ def save_user_id_decorator(handler):
         await save_user_id(client, message)
         await handler(client, message)
     return wrapper
-
 
 
 # Register handlers
@@ -68,7 +68,7 @@ app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
 app.on_message(filters.command("restart") & filters.private)(restart_bot)
 app.on_message(filters.command("broadcast") & filters.reply & filters.user(BOT_OWNER))(handle_broadcast)
-
+app.on_message(filters.command("transfer") & filters.user(BOT_OWNER))(transfer_collection)
 add_eval_handlers(app)
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler
