@@ -5,6 +5,8 @@ from telegram import InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboar
 from telegram.ext import InlineQueryHandler, CallbackQueryHandler, ContextTypes
 from Bot.database import db
 from telegram.constants import ParseMode
+from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
+from ..database import get_next_anime_id
 
 async def get_character_details(character_id):
     character = await db.Characters.find_one({"id": character_id})
@@ -29,6 +31,83 @@ async def fetch_user_names(client, user_ids):
     users = await client.get_users(user_ids)
     return {user.id: user.mention for user in users}
 
+
+async def handle_search_anime(query, results):
+    anime_name = query.split("search.anime ", 1)[1]
+    animes = await db.Anime.find({"name": {"$regex": anime_name, "$options": "i"}}).to_list(length=100)
+
+    for anime in animes:
+        character_count = await db.Characters.count_documents({"anime_id": anime["anime_id"]})
+
+        caption = (
+            f"✨ <b>Anime</b><b>:</b> <b>{anime['name']}</b>\n"
+            f"🆔<b>:</b> <b>{anime['anime_id']}</b>\n\n"
+            f"<b>Characters uploaded:</b> {character_count}"
+        )
+
+        result = InlineQueryResultArticle(
+            id=str(anime["anime_id"]),
+            title=anime["name"],
+            input_message_content=InputTextMessageContent(caption, parse_mode='HTML')
+        )
+        results.append(result)
+
+
+async def handle_anime_query(query, results):
+    anime_name = query.split(".anime ", 1)[1]
+    animes = await db.Anime.find({"name": {"$regex": anime_name, "$options": "i"}}).to_list(length=100)
+    
+    if animes:
+        for anime in animes:
+            caption = (
+                f"✨ <b>Anime</b><b>:</b> <b>{anime['name']}</b>\n"
+                f"🆔<b>:</b> <b>{anime['anime_id']}</b>"
+            )
+            result = InlineQueryResultArticle(
+                id=str(anime["anime_id"]),
+                title=anime["name"],
+                input_message_content=InputTextMessageContent(caption, parse_mode='HTML')
+            )
+            results.append(result)
+    else:
+        # If no anime is found, provide an option to create a new one
+        caption = f"No anime found with the name '{anime_name}'. Click below to create it."
+        create_anime_caption = (
+            f"Anime '{anime_name}' has been created successfully."
+        )
+
+        result = InlineQueryResultArticle(
+            id="create_anime",
+            title=f"Create Anime: {anime_name}",
+            input_message_content=InputTextMessageContent(caption, parse_mode='HTML'),
+            description="Click here to create a new anime",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Create Anime", callback_data=f"create_anime:{anime_name}")
+            ]])
+        )
+        results.append(result)
+
+async def create_anime_callback(update, context):
+    query = update.callback_query
+    anime_name = query.data.split(":")[1]
+
+    # Check if the anime already exists
+    existing_anime = await db.Anime.find_one({"name": anime_name})
+    if existing_anime:
+        await query.answer(f"Anime '{anime_name}' already exists with ID {existing_anime['anime_id']}.")
+        return
+
+    # Create the new anime
+    anime_id = await get_next_anime_id()
+    await db.Anime.insert_one({"name": anime_name, "anime_id": anime_id})
+    
+    await query.answer(f"Anime '{anime_name}' has been created successfully with ID {anime_id}.")
+    await query.edit_message_text(
+        f"Anime '{anime_name}' has been created successfully with ID {anime_id}.",
+        parse_mode='HTML'
+    )
+
+
 async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     results = []
@@ -41,15 +120,28 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
             user_name = extract_name(user_collection.get("user_name", "Unknown User"))
             user_id = user_collection["user_id"]
             icaption_preference = await get_icaption_preference(user_id)
+
+            anime_character_count = {}
             for image in user_collection["images"]:
                 character = await get_character_details(image["image_id"])
                 if character:
+                    anime_id = character["anime_id"]
+                    if anime_id not in anime_character_count:
+                        anime_character_count[anime_id] = 0
+                    anime_character_count[anime_id] += 1
+
+            for image in user_collection["images"]:
+                character = await get_character_details(image["image_id"])
+                if character:
+                    total_uploaded_characters = await db.Characters.count_documents({"anime_id": character["anime_id"]})
+                    user_character_count = anime_character_count[character["anime_id"]]
+
                     if icaption_preference == "Caption 1":
                         caption = (
                             f"<b>Look at {user_name}'s smashed character !!</b>\n\n"
                             f"✨<b>Name :</b> <b>{character['name']} | x{image['count']}</b>\n"
                             f"{character['rarity_sign']} <b>Rarity :</b> <b>{character['rarity']}</b>\n"
-                            f"🍁<b>Anime :</b> <b>{character['anime']}</b>\n\n"
+                            f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>\n\n"
                             f"🆔 : <b>{character['id']}</b>"
                         )
                     else:
@@ -57,6 +149,7 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                             f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
                             f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
                             f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
+                            f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>"
                         )
                     result = InlineQueryResultPhoto(
                         id=str(character["id"]),
@@ -66,6 +159,10 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                         parse_mode='HTML'
                     )
                     results.append(result)
+    elif query.startswith(".anime "):
+        await handle_anime_query(query, results)
+    elif query.startswith("search.anime "):
+        await handle_search_anime(query, results)
     else:
         # Searching for characters by name or ID
         characters = []
@@ -96,6 +193,8 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
             results.append(result)
 
     await update.inline_query.answer(results, cache_time=1)
+
+
 
 async def smasher_callback(update, context):
     query = update.callback_query
@@ -130,3 +229,4 @@ async def smasher_callback(update, context):
 
 inline_query_handler = InlineQueryHandler(inline_query)
 smasher_callback_handler = CallbackQueryHandler(smasher_callback, pattern=r'^smasher:')
+create_anime_callback_handler = CallbackQueryHandler(create_anime_callback, pattern=r'^create_anime:')

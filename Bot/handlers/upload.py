@@ -1,12 +1,10 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.enums import ParseMode
-from Bot.database import db, get_next_id
 from datetime import datetime, timedelta
-import re
+from Bot.database import db, get_next_id, is_user_sudo
 from Bot.config import SUPPORT_CHAT_ID , OWNER_ID
-from ..database import is_user_sudo  # Ensure is_user_sudo is correctly imported
-
+import re
 
 RARITY_MAPPING = {
     "1": {"name": "Common", "sign": "⚪️"},
@@ -54,15 +52,54 @@ async def process_upload_step(client: Client, message: Message):
     elif step == 2:
         upload_data[user_id]["name"] = message.text.replace("-", " ")
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
+        search_button = InlineKeyboardButton("Search for Anime", switch_inline_query_current_chat=".anime ")
         sent = await message.reply(
-            "Please send the anime name.",
+            "Please send the anime ID or use the button below to search for the anime.",
             reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
+                [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
             )
         )
         upload_data[user_id]["last_message_id"] = sent.id
     elif step == 3:
-        upload_data[user_id]["anime"] = message.text.replace("-", " ")
+        anime_id_text = message.text.strip()
+        anime_id = None
+        try:
+            # Check if the text contains the formatted anime info
+            if "🆔:" in anime_id_text:
+                # Use regex to extract the numeric ID
+                match = re.search(r'🆔:\s*(\d+)', anime_id_text)
+                if match:
+                    anime_id = match.group(1)
+                else:
+                    raise ValueError("Invalid anime ID format.")
+            else:
+                # Assume the text is directly the anime ID
+                anime_id = anime_id_text
+
+            anime_id = int(anime_id)
+        except (ValueError, AttributeError) as e:
+            sent = await message.reply(
+                f"Invalid anime ID. Please provide a valid anime ID. Error: {e}",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
+                )
+            )
+            upload_data[user_id]["last_message_id"] = sent.id
+            return
+
+        anime = await db.Anime.find_one({"anime_id": anime_id})
+        if not anime:
+            sent = await message.reply(
+                "Invalid anime ID. Please provide a valid anime ID.",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
+                )
+            )
+            upload_data[user_id]["last_message_id"] = sent.id
+            return
+
+        upload_data[user_id]["anime"] = anime["name"]
+        upload_data[user_id]["anime_id"] = anime_id
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
         sent = await message.reply(
             "Please choose the rarity.",
@@ -109,6 +146,7 @@ async def set_rarity(client: Client, callback_query: CallbackQuery):
         else:
             await finalize_upload(client, callback_query.message.chat.id, user_id)
 
+
 async def finalize_upload(client: Client, chat_id: int, user_id: int):
     data = upload_data[user_id]
     try:
@@ -120,6 +158,7 @@ async def finalize_upload(client: Client, chat_id: int, user_id: int):
             "img_url": data["img_url"],
             "name": data["name"],
             "anime": data["anime"],
+            "anime_id": data["anime_id"],
             "rarity": RARITY_MAPPING[data["rarity"]]["name"],
             "rarity_sign": RARITY_MAPPING[data["rarity"]]["sign"],
             "expiry_time": expiry
@@ -152,6 +191,8 @@ async def finalize_upload(client: Client, chat_id: int, user_id: int):
         await client.send_message(chat_id, f"An error occurred: {e}")
     finally:
         del upload_data[user_id]
+
+
 
 async def start_edit(client: Client, message: Message):
     params = message.text.split()
@@ -226,13 +267,15 @@ async def select_field(client: Client, callback_query: CallbackQuery):
         field_prompt = {
             "img_url": "Please provide the new Image URL.",
             "name": "Please provide the new Name.",
-            "anime": "Please provide the new Anime."
+            "anime": "Please provide the new Anime ID or use the button below to search for the anime."
         }
+        search_button = InlineKeyboardButton("Search for Anime", switch_inline_query_current_chat=".anime ") if field == "anime" else None
+        buttons = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+        if search_button:
+            buttons.insert(0, [search_button])
         sent = await callback_query.message.reply(
             field_prompt[field],
-            reply_markup=InlineKeyboardMarkup(
-                [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
-            )
+            reply_markup=InlineKeyboardMarkup(buttons)
         )
     
     edit_data[user_id]["last_message_id"] = sent.id
@@ -262,7 +305,45 @@ async def process_edit_step(client: Client, message: Message):
     elif field == "name":
         updates["name"] = value.replace("-", " ")
     elif field == "anime":
-        updates["anime"] = value.replace("-", " ")
+        anime_id_text = value
+        anime_id = None
+        try:
+            # Check if the text contains the formatted anime info
+            if "🆔:" in anime_id_text:
+                # Use regex to extract the numeric ID
+                match = re.search(r'🆔:\s*(\d+)', anime_id_text)
+                if match:
+                    anime_id = match.group(1)
+                else:
+                    raise ValueError("Invalid anime ID format.")
+            else:
+                # Assume the text is directly the anime ID
+                anime_id = anime_id_text
+
+            anime_id = int(anime_id)
+        except (ValueError, AttributeError) as e:
+            sent = await message.reply(
+                f"Invalid anime ID. Please provide a valid anime ID. Error: {e}",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+                )
+            )
+            edit_data[user_id]["last_message_id"] = sent.id
+            return
+
+        anime = await db.Anime.find_one({"anime_id": anime_id})
+        if not anime:
+            sent = await message.reply(
+                "Invalid anime ID. Please provide a valid anime ID.",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+                )
+            )
+            edit_data[user_id]["last_message_id"] = sent.id
+            return
+
+        updates["anime"] = anime["name"]
+        updates["anime_id"] = anime_id
 
     edit_data[user_id]["updates"] = updates
     await finalize_edit(client, message.chat.id, user_id)
@@ -327,6 +408,7 @@ async def finalize_edit(client: Client, chat_id: int, user_id: int):
     finally:
         if user_id in edit_data:
             del edit_data[user_id]
+
 
 
 

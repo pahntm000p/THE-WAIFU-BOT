@@ -4,7 +4,7 @@ from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
 from .config import OWNER_ID as BOT_OWNER
 from . import app, pbot
 from .handlers import *
-
+from Bot.database import db, get_next_anime_id
 
 # Custom filter to check if a user is banned
 async def command_filter(_, __, message: Message):
@@ -142,10 +142,12 @@ async def handle_text(client: Client, message: Message):
         await process_edit_step(client, message)
 
 
+
 def main() -> None:
     """Run bot."""
     pbot.add_handler(inline_query_handler)
     pbot.add_handler(smasher_callback_handler)
+    pbot.add_handler(create_anime_callback_handler)
     pbot.run_polling(drop_pending_updates=True)
 
 

@@ -154,3 +154,25 @@ async def is_user_sudo(user_id):
 async def get_icaption_preference(user_id):
     preference = await db.Preference.find_one({"user_id": user_id})
     return preference.get("icaption", "Caption 1") if preference else "Caption 1"
+
+
+# Add this in database.py
+
+async def get_anime_id(anime_name):
+    anime = await db.Anime.find_one({"name": anime_name})
+    if anime:
+        return anime["anime_id"]
+    else:
+        anime_id = await get_next_anime_id()
+        await db.Anime.insert_one({"name": anime_name, "anime_id": anime_id})
+        return anime_id
+
+async def get_next_anime_id():
+    counter = await db.Counters.find_one_and_update(
+        {"_id": "anime_id"},
+        {"$inc": {"sequence_value": 1}},
+        upsert=True,
+        return_document=True
+    )
+    return counter["sequence_value"]
+
