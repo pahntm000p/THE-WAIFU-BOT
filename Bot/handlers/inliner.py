@@ -113,58 +113,76 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
     results = []
 
     if query.startswith("smashed."):
-        owner_user_id = int(query.split(".")[1])
-        user_collection = await db.Collection.find_one({"user_id": owner_user_id})
+        parts = query.split(" ", 1)
+        try:
+            owner_user_id = int(parts[0].split(".")[1])
+            search_term = parts[1] if len(parts) > 1 else ""
+        except (IndexError, ValueError):
+            owner_user_id = None
+            search_term = ""
 
-        if user_collection and user_collection.get("images"):
-            user_name = extract_name(user_collection.get("user_name", "Unknown User"))
-            user_id = user_collection["user_id"]
-            icaption_preference = await get_icaption_preference(user_id)
+        if owner_user_id is not None:
+            user_collection = await db.Collection.find_one({"user_id": owner_user_id})
 
-            anime_character_count = {}
-            for image in user_collection["images"]:
-                character = await get_character_details(image["image_id"])
-                if character:
-                    anime_id = character["anime_id"]
-                    if anime_id not in anime_character_count:
-                        anime_character_count[anime_id] = 0
-                    anime_character_count[anime_id] += 1
+            if user_collection and user_collection.get("images"):
+                user_name = extract_name(user_collection.get("user_name", "Unknown User"))
+                user_id = user_collection["user_id"]
+                icaption_preference = await get_icaption_preference(user_id)
 
-            for image in user_collection["images"]:
-                character = await get_character_details(image["image_id"])
-                if character:
-                    total_uploaded_characters = await db.Characters.count_documents({"anime_id": character["anime_id"]})
-                    user_character_count = anime_character_count[character["anime_id"]]
+                anime_character_count = {}
+                for image in user_collection["images"]:
+                    character = await get_character_details(image["image_id"])
+                    if character:
+                        anime_id = character["anime_id"]
+                        if anime_id not in anime_character_count:
+                            anime_character_count[anime_id] = 0
+                        anime_character_count[anime_id] += 1
 
-                    if icaption_preference == "Caption 1":
-                        caption = (
-                            f"<b>Look at {user_name}'s smashed character !!</b>\n\n"
-                            f"✨<b>Name :</b> <b>{character['name']} | x{image['count']}</b>\n"
-                            f"{character['rarity_sign']} <b>Rarity :</b> <b>{character['rarity']}</b>\n"
-                            f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>\n\n"
-                            f"🆔 : <b>{character['id']}</b>"
+                matching_images = []
+                for image in user_collection["images"]:
+                    character = await get_character_details(image["image_id"])
+                    if character:
+                        if search_term.isdigit() and character["id"] == int(search_term):
+                            matching_images.append(image)
+                        elif re.search(search_term, character["name"], re.IGNORECASE):
+                            matching_images.append(image)
+
+                for image in matching_images:
+                    character = await get_character_details(image["image_id"])
+                    if character:
+                        total_uploaded_characters = await db.Characters.count_documents({"anime_id": character["anime_id"]})
+                        user_character_count = anime_character_count[character["anime_id"]]
+
+                        if icaption_preference == "Caption 1":
+                            caption = (
+                                f"<b>Look at {user_name}'s smashed character !!</b>\n\n"
+                                f"✨<b>Name :</b> <b>{character['name']} | x{image['count']}</b>\n"
+                                f"{character['rarity_sign']} <b>Rarity :</b> <b>{character['rarity']}</b>\n"
+                                f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>\n\n"
+                                f"🆔 : <b>{character['id']}</b>"
+                            )
+                        else:
+                            caption = (
+                                f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
+                                f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
+                                f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
+                                f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>"
+                            )
+                        result = InlineQueryResultPhoto(
+                            id=str(character["id"]),
+                            photo_url=character["img_url"],
+                            thumbnail_url=character["img_url"],
+                            caption=caption,
+                            parse_mode='HTML'
                         )
-                    else:
-                        caption = (
-                            f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
-                            f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
-                            f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
-                            f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>"
-                        )
-                    result = InlineQueryResultPhoto(
-                        id=str(character["id"]),
-                        photo_url=character["img_url"],
-                        thumbnail_url=character["img_url"],
-                        caption=caption,
-                        parse_mode='HTML'
-                    )
-                    results.append(result)
+                        results.append(result)
+
     elif query.startswith(".anime "):
         await handle_anime_query(query, results)
     elif query.startswith("search.anime "):
         await handle_search_anime(query, results)
     else:
-        # Searching for characters by name or ID
+        # Global search for characters by name or ID
         characters = []
         if query.isdigit() or re.match(r"^\d+$", query):
             # Search by numeric string ID
@@ -214,7 +232,10 @@ async def smasher_callback(update, context):
     smasher_mentions = []
     for smasher in smashers:
         user = await context.bot.get_chat(smasher["user_id"])
-        smasher_mentions.append(f"--> <a href='tg://user?id={user.id}'>{user.first_name}</a>")  # Fetch user full name
+        # Find the count of the specific character for this user
+        image = next((img for img in smasher["images"] if img["image_id"] == character_id), None)
+        count = image["count"] if image else 0
+        smasher_mentions.append(f"--> <a href='tg://user?id={user.id}'>{user.first_name}</a> (x{count})")
 
     smasher_text = f"<b>✨ Name: {character['name']}\n"
     smasher_text += f"🟡 Rarity: {character['rarity']}\n"
@@ -226,6 +247,7 @@ async def smasher_callback(update, context):
     new_caption = f"{existing_caption}\n\n{smasher_text}"
 
     await query.edit_message_caption(new_caption, parse_mode='HTML')
+
 
 inline_query_handler = InlineQueryHandler(inline_query)
 smasher_callback_handler = CallbackQueryHandler(smasher_callback, pattern=r'^smasher:')
