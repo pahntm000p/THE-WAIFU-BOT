@@ -2,30 +2,8 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
 from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
 from .config import OWNER_ID as BOT_OWNER
-from .handlers.start import start
-from .handlers.inliner import inline_query_handler, smasher_callback_handler
-from .handlers.search import search, send_inline_query_button
-from .handlers.drop import droptime, check_message_count, handle_new_member
-from .handlers.smash import smash_image 
-from .handlers.collection import smashes, paginate_collection
-from .handlers.gift import gift_character, confirm_gift, cancel_gift
-from .handlers.trade import initiate_trade, handle_trade_callback
-from .handlers.daan import daan
-from .handlers.sinfo import sinfo, delete_collection, close_sinfo
-from .handlers.privacy import ban, unban, add_sudo, remove_sudo , sudoers
-from .database import is_user_banned, is_user_sudo
-from .handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel, set_cmode, cmode_close, cmode_select
-from .handlers.leaderboard import top, stop
-from .handlers.mic import check_character, sstatus, show_smashers, claim_handler , set_force_sub , manage_group_ids
-from .handlers.upreq import *
-from .handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
 from . import app, pbot
-from .handlers.upload import start_upload, process_upload_step, set_rarity, cancel_upload, upload_data
-from .handlers.upload import start_edit, select_field, set_edit_rarity, cancel_edit, process_edit_step, edit_data
-from .handlers.ping import add_ping_handler  # Import the add_ping_handler function
-from .handlers.upload import add_delete_handler
-from .handlers.mic import add_logs_handler
-
+from .handlers import *
 
 
 # Custom filter to check if a user is banned
@@ -71,7 +49,7 @@ app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmod
 app.on_message(filters.command("claim") & filters.private)(claim_handler)
 app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
-# Add the ping handler
+add_eval_handlers(app)
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler
 add_logs_handler(app)  # Add the logs handler
@@ -102,10 +80,8 @@ app.add_handler(CallbackQueryHandler(paginate_collection, filters.regex(r"^page_
 # Register the new member handler for setting default droptime
 app.add_handler(ChatMemberUpdatedHandler(handle_new_member))
 
-# Filter to exclude commands
+#MSG COUNT
 non_command_filter = filters.group & ~filters.regex(r"^/")
-
-# Register message handler with non-command filter
 app.on_message((filters.text | filters.media | filters.sticker) & filters.group & command_filter)(check_message_count)
 
 # Upload/Edit

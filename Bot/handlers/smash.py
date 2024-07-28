@@ -27,8 +27,9 @@ async def smash_image(client: Client, message: Message):
         await message.reply(f"**ℹ Last character was already smashed by {smashed_user_mention} !!**")
         return
 
-    # Check if the guessed name is correct
-    if guessed_name == drop["image_name"].strip().lower():
+    # Check if the guessed name matches any part of the character's name
+    character_name_parts = drop["image_name"].strip().lower().split()
+    if guessed_name in character_name_parts:
         # Fetch additional details from the Characters collection
         character = await get_character_details(drop["image_id"])
         if not character:
@@ -60,4 +61,3 @@ async def smash_image(client: Client, message: Message):
             f"**Please try again [🔼]({dropped_image_link})**",
             disable_web_page_preview=True
         )
-
