@@ -21,24 +21,40 @@ async def sudo_filter(_, __, message: Message):
 command_filter = filters.create(command_filter)
 sudo_filter = filters.create(sudo_filter)
 
+
+# Middleware to save user ID
+async def save_user_id(client: Client, message: Message):
+    user_id = message.from_user.id
+    if not await db.TotalUsers.find_one({"user_id": user_id}):
+        await db.TotalUsers.insert_one({"user_id": user_id})
+
+# Decorator to save user ID
+def save_user_id_decorator(handler):
+    async def wrapper(client: Client, message: Message):
+        await save_user_id(client, message)
+        await handler(client, message)
+    return wrapper
+
+
+
 # Register handlers
-app.on_message(filters.command("start") & filters.private & command_filter)(start)
-app.on_message(filters.command("search") & command_filter)(search)
-app.on_message(filters.command("droptime") & filters.group & command_filter)(droptime)
-app.on_message(filters.command("smash") & filters.group & command_filter)(smash_image)
-app.on_message(filters.command("smashes") & command_filter)(smashes)
-app.on_message(filters.command("gift") & filters.group & filters.reply & command_filter)(gift_character)
-app.on_message(filters.command("daan") & sudo_filter)(daan)
-app.on_message(filters.command("sudoers") & filters.user(BOT_OWNER))(sudoers)
-app.on_message(filters.command("sinfo") & sudo_filter)(sinfo)
-app.on_message(filters.command("bang") & sudo_filter)(ban)
-app.on_message(filters.command("unbang") & sudo_filter)(unban)
-app.on_message(filters.command("sudo") & filters.user(BOT_OWNER))(add_sudo)
-app.on_message(filters.command("rmsudo") & filters.user(BOT_OWNER))(remove_sudo)
-app.on_message(filters.command("fav") & command_filter)(set_fav)
-app.on_message(filters.command("unfav") & command_filter)(unfav)
-app.on_message(filters.command("smode") & command_filter)(smode)
-app.on_message(filters.command("top") & filters.group & command_filter)(top)
+app.on_message(filters.command("start") & filters.private & command_filter)(save_user_id_decorator(start))
+app.on_message(filters.command("search") & command_filter)(save_user_id_decorator(search))
+app.on_message(filters.command("droptime") & filters.group & command_filter)(save_user_id_decorator(droptime))
+app.on_message(filters.command("smash") & filters.group & command_filter)(save_user_id_decorator(smash_image))
+app.on_message(filters.command("smashes") & command_filter)(save_user_id_decorator(smashes))
+app.on_message(filters.command("gift") & filters.group & filters.reply & command_filter)(save_user_id_decorator(gift_character))
+app.on_message(filters.command("daan") & sudo_filter)(save_user_id_decorator(daan))
+app.on_message(filters.command("sudoers") & filters.user(BOT_OWNER))(save_user_id_decorator(sudoers))
+app.on_message(filters.command("sinfo") & sudo_filter)(save_user_id_decorator(sinfo))
+app.on_message(filters.command("bang") & sudo_filter)(save_user_id_decorator(ban))
+app.on_message(filters.command("unbang") & sudo_filter)(save_user_id_decorator(unban))
+app.on_message(filters.command("sudo") & filters.user(BOT_OWNER))(save_user_id_decorator(add_sudo))
+app.on_message(filters.command("rmsudo") & filters.user(BOT_OWNER))(save_user_id_decorator(remove_sudo))
+app.on_message(filters.command("fav") & command_filter)(save_user_id_decorator(set_fav))
+app.on_message(filters.command("unfav") & command_filter)(save_user_id_decorator(unfav))
+app.on_message(filters.command("smode") & command_filter)(save_user_id_decorator(smode))
+app.on_message(filters.command("top") & filters.group & command_filter)(save_user_id_decorator(top))
 app.on_message(filters.command("gtop") & command_filter)(gtop)
 app.on_message(filters.command("check") & filters.group & command_filter)(check_character)
 app.on_message(filters.command("sstatus") & command_filter)(sstatus)
@@ -51,6 +67,8 @@ app.on_message(filters.command("claim") & filters.private)(claim_handler)
 app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
 app.on_message(filters.command("restart") & filters.private)(restart_bot)
+app.on_message(filters.command("broadcast") & filters.reply & filters.user(BOT_OWNER))(handle_broadcast)
+
 add_eval_handlers(app)
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler

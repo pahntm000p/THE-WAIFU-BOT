@@ -23,3 +23,4 @@ from ..handlers.mic import add_logs_handler
 from .eval import add_eval_handlers
 from .restart import  restart_bot
 from .leaderboard import ctop , tdtop
+from .broadcast import handle_broadcast

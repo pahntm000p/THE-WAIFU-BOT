@@ -97,14 +97,17 @@ async def initiate_gtrade(client: Client, message: Message):
 
     # Get all users who have enabled global trade requests
     gtrade_users = await get_all_gtrade_users()
-    gtrade_count = len(gtrade_users)
+
+    # Limit the number of users to 15
+    limited_gtrade_users = gtrade_users[:15]
+    gtrade_count = len(limited_gtrade_users)
 
     # Save the global trade information
     pending_gtrades[user_a.id] = {"char_a_id": char_a_id, "char_b_id": char_b_id}
     trade_message_ids[user_a.id] = {"requester_msg_id": None, "receivers_msg_ids": []}
 
-    # Send the global trade request to all users who enabled it
-    for gtrade_user in gtrade_users:
+    # Send the global trade request to limited users who enabled it
+    for gtrade_user in limited_gtrade_users:
         user_b_id = gtrade_user["user_id"]
         if user_b_id == user_a.id:
             continue
@@ -137,6 +140,7 @@ async def initiate_gtrade(client: Client, message: Message):
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel Trade", callback_data=f"cancel_gtrade|{user_a.id}")]])
     )
     trade_message_ids[user_a.id]["requester_msg_id"] = requester_msg.id
+
     
 
 async def handle_gtrade_callback(client: Client, callback_query: CallbackQuery):
