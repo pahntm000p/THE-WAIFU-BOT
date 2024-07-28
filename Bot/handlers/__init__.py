@@ -1,6 +1,6 @@
 from ..handlers.start import start
 from ..handlers.inliner import inline_query_handler, smasher_callback_handler , create_anime_callback_handler
-from ..handlers.search import search, send_inline_query_button
+from ..handlers.search import search
 from ..handlers.drop import droptime, check_message_count, handle_new_member
 from ..handlers.smash import smash_image 
 from ..handlers.collection import smashes, paginate_collection
@@ -11,7 +11,7 @@ from ..handlers.sinfo import sinfo, delete_collection, close_sinfo
 from ..handlers.privacy import ban, unban, add_sudo, remove_sudo , sudoers
 from ..database import is_user_banned, is_user_sudo
 from ..handlers.preference import set_fav, unfav, smode, smode_default, smode_sort, smode_rarity, smode_close, fav_confirm, fav_cancel, set_cmode, cmode_close, cmode_select
-from ..handlers.leaderboard import top, stop
+from ..handlers.leaderboard import top, gtop
 from ..handlers.mic import check_character, sstatus, show_smashers, claim_handler , set_force_sub , manage_group_ids
 from ..handlers.upreq import *
 from ..handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_callback
@@ -22,3 +22,4 @@ from ..handlers.upload import add_delete_handler
 from ..handlers.mic import add_logs_handler
 from .eval import add_eval_handlers
 from .restart import  restart_bot
+from .leaderboard import ctop , tdtop

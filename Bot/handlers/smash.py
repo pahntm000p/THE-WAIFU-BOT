@@ -1,6 +1,10 @@
 from pyrogram import Client, filters
 from ..database import get_drop, update_smashed_image, update_drop, get_character_details
 from pyrogram.types import Message
+from datetime import datetime
+from pymongo import UpdateOne
+from ..database import db 
+
 
 async def smash_image(client: Client, message: Message):
     if len(message.command) < 2:
@@ -10,6 +14,7 @@ async def smash_image(client: Client, message: Message):
     guessed_name = " ".join(message.command[1:]).strip().lower()
     group_id = message.chat.id
     user_id = message.from_user.id
+    today_date = datetime.utcnow().date().isoformat()
 
     # Retrieve the last drop for the group
     drop = await get_drop(group_id)
@@ -41,6 +46,20 @@ async def smash_image(client: Client, message: Message):
 
         # Update the drop to indicate it has been smashed
         await update_drop(group_id, drop["image_id"], drop["image_name"], drop["image_url"], smashed_by=user_id)
+
+        # Update the number of smashes chat ID-wise
+        db.Groups.update_one(
+            {"group_id": group_id},
+            {"$inc": {"smash_count": 1}},
+            upsert=True
+        )
+
+        # Update the smashers' user IDs day-by-day
+        db.Tdsmashes.update_one(
+            {"user_id": user_id, "date": today_date},
+            {"$inc": {"smash_count": 1}},
+            upsert=True
+        )
 
         # Send success message with character details
         rarity_sign = character.get("rarity_sign", "")
