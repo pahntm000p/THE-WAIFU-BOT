@@ -10,8 +10,7 @@ RARITY_MAPPING = {
     "1": {"name": "Common", "sign": "⚪️"},
     "2": {"name": "Rare", "sign": "🟠"},
     "3": {"name": "Legendary", "sign": "🟡"},
-    "4": {"name": "Medium", "sign": "🟢"},
-    "5": {"name": "Limited Time", "sign": "🔴"}
+    "4": {"name": "Medium", "sign": "🟢"}
 }
 
 upload_data = {}
@@ -20,7 +19,7 @@ edit_data = {}
 async def start_upload(client: Client, message: Message):
     upload_data[message.from_user.id] = {}
     sent = await message.reply(
-        "Please send the image URL.",
+        "🖼️ Please send the image URL.",
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
         )
@@ -43,7 +42,7 @@ async def process_upload_step(client: Client, message: Message):
         upload_data[user_id]["img_url"] = message.text
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
         sent = await message.reply(
-            "Please send the character name.",
+            "📝 Please send the character name.",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
             )
@@ -52,9 +51,9 @@ async def process_upload_step(client: Client, message: Message):
     elif step == 2:
         upload_data[user_id]["name"] = message.text.replace("-", " ")
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
-        search_button = InlineKeyboardButton("Search for Anime", switch_inline_query_current_chat=".anime ")
+        search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
         sent = await message.reply(
-            "Please send the anime ID or use the button below to search for the anime.",
+            "📺 Please send the anime ID or use the button below to search for the anime.",
             reply_markup=InlineKeyboardMarkup(
                 [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
             )
@@ -78,9 +77,9 @@ async def process_upload_step(client: Client, message: Message):
 
             anime_id = int(anime_id)
         except (ValueError, AttributeError):
-            search_button = InlineKeyboardButton("Search for Anime", switch_inline_query_current_chat=".anime ")
+            search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
             sent = await message.reply(
-                "Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
+                "❗ Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
                 reply_markup=InlineKeyboardMarkup(
                     [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
                 )
@@ -91,7 +90,7 @@ async def process_upload_step(client: Client, message: Message):
         anime = await db.Anime.find_one({"anime_id": anime_id})
         if not anime:
             sent = await message.reply(
-                "Invalid anime ID. Please provide a valid anime ID.",
+                "❗ Invalid anime ID. Please provide a valid anime ID.",
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
                 )
@@ -103,7 +102,7 @@ async def process_upload_step(client: Client, message: Message):
         upload_data[user_id]["anime_id"] = anime_id
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
         sent = await message.reply(
-            "Please choose the rarity.",
+            "🌟 Please choose the rarity.",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [InlineKeyboardButton(f"{info['sign']} {info['name']}", callback_data=f"set_rarity_{key}")]
@@ -112,23 +111,6 @@ async def process_upload_step(client: Client, message: Message):
             )
         )
         upload_data[user_id]["last_message_id"] = sent.id
-    elif step == 4:
-        await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
-        rarity = upload_data[user_id]["rarity"]
-        if rarity == "5":
-            try:
-                num_days = int(message.text)
-            except ValueError:
-                sent = await message.reply(
-                    "Invalid number of days. Please provide a valid integer.",
-                    reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
-                    )
-                )
-                upload_data[user_id]["last_message_id"] = sent.id
-                return
-            upload_data[user_id]["expiry"] = datetime.utcnow() + timedelta(days=num_days)
-        await finalize_upload(client, message.chat.id, user_id)
 
 async def set_rarity(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -136,23 +118,12 @@ async def set_rarity(client: Client, callback_query: CallbackQuery):
         rarity = callback_query.data.split("_")[-1]
         upload_data[user_id]["rarity"] = rarity
         await client.delete_messages(callback_query.message.chat.id, upload_data[user_id]["last_message_id"])
-        if rarity == "5":
-            sent = await callback_query.message.edit_text(
-                "Please provide the number of days for Limited Time rarity.",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
-                )
-            )
-            upload_data[user_id]["last_message_id"] = sent.id
-        else:
-            await finalize_upload(client, callback_query.message.chat.id, user_id)
-
+        await finalize_upload(client, callback_query.message.chat.id, user_id)
 
 async def finalize_upload(client: Client, chat_id: int, user_id: int):
     data = upload_data[user_id]
     try:
         new_id = await get_next_id()
-        expiry = data.get("expiry")
 
         character = {
             "id": f"{new_id:02}",
@@ -162,34 +133,32 @@ async def finalize_upload(client: Client, chat_id: int, user_id: int):
             "anime_id": data["anime_id"],
             "rarity": RARITY_MAPPING[data["rarity"]]["name"],
             "rarity_sign": RARITY_MAPPING[data["rarity"]]["sign"],
-            "expiry_time": expiry
         }
 
         await db.Characters.insert_one(character)
-        expiry_message = f" for {expiry}" if expiry else ""
 
         user = await client.get_users(user_id)
         user_mention = f"<a href='tg://user?id={user_id}'>{user.first_name}</a>"
-        caption = (f"<b>{user_mention} just uploaded a new character !!</b>\n\n"
-                   f"<b>🐼 Name : {data['name']}</b>\n"
-                   f"<b>🌺 Anime : {data['anime']}</b>\n"
-                   f"<b>{RARITY_MAPPING[data['rarity']]['sign']} Rarity : {RARITY_MAPPING[data['rarity']]['name']}</b>\n\n"
-                   f"<b>🪪  : {new_id:02} {expiry_message}</b>")
+        caption = (f"<b>{user_mention} just uploaded a new character!</b>\n\n"
+                   f"🐼 <b>Name:</b> {data['name']}\n"
+                   f"🌺 <b>Anime:</b> {data['anime']}\n"
+                   f"{RARITY_MAPPING[data['rarity']]['sign']} <b>Rarity:</b> {RARITY_MAPPING[data['rarity']]['name']}\n\n"
+                   f"🆔 <b>ID:</b> {new_id:02}")
 
         await client.send_photo(
-            SUPPORT_CHAT_ID, 
-            data["img_url"], 
-            caption=caption, 
+            SUPPORT_CHAT_ID,
+            data["img_url"],
+            caption=caption,
             parse_mode=ParseMode.HTML
         )
 
         await client.send_message(
             chat_id,
-            f"<b>Character {data['name']} added successfully with ID {new_id:02} as {RARITY_MAPPING[data['rarity']]['name']} {RARITY_MAPPING[data['rarity']]['sign']}{expiry_message}.</b>",
+            f"<b>Character {data['name']} added successfully with ID {new_id:02} as {RARITY_MAPPING[data['rarity']]['name']} {RARITY_MAPPING[data['rarity']]['sign']}.</b>",
             parse_mode=ParseMode.HTML
         )
     except Exception as e:
-        await client.send_message(chat_id, f"An error occurred: {e}")
+        await client.send_message(chat_id, f"❗ An error occurred: {e}")
     finally:
         del upload_data[user_id]
 
