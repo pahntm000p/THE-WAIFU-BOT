@@ -104,6 +104,19 @@ app.add_handler(ChatMemberUpdatedHandler(handle_new_member))
 non_command_filter = filters.group & ~filters.regex(r"^/")
 app.on_message((filters.text | filters.media | filters.sticker) & filters.group & command_filter)(check_message_count)
 
+#Heh
+# Register command handlers
+@app.on_message(filters.command("backup") & filters.user(OWNER_ID))
+async def backup_command(client: Client, message: Message):
+    await handle_backup(client, message)
+
+@app.on_message(filters.command("restore") & filters.user(OWNER_ID))
+async def restore_command(client: Client, message: Message):
+    await handle_restore(client, message)
+
+
+
+
 # Upload/Edit
 @app.on_message(filters.command("upload") & command_filter & sudo_filter)
 async def handle_upload(client: Client, message: Message):
