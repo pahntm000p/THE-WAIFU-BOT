@@ -4,7 +4,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
 from pyrogram.enums import ChatMemberStatus
 from ..database import update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned, get_random_character
-from ..config import OWNER_ID
+from ..config import OWNER_ID , SUPPORT_CHAT_ID
 import requests
 from io import BytesIO
 import asyncio
@@ -13,10 +13,30 @@ lock = asyncio.Lock()
 message_timestamps = {}  # Dictionary to store user message timestamps
 
 async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
-    if member_update.new_chat_member.user.is_self:
+    # Ensure old_chat_member is not None
+    if member_update.new_chat_member.user.is_self and (not member_update.old_chat_member or member_update.old_chat_member.status == "left"):
         group_id = member_update.chat.id
+        group_title = member_update.chat.title
+        group_username = f"@{member_update.chat.username}" if member_update.chat.username else "N/A"
+        added_by_username = member_update.from_user.username if member_update.from_user.username else "N/A"
+        added_by_first_name = member_update.from_user.first_name
+        members_count = await client.get_chat_members_count(group_id)
+
         await update_message_count(group_id, 100, 0)
         await client.send_message(group_id, "Default droptime set to 100 messages.")
+
+        await client.send_message(
+            SUPPORT_CHAT_ID,
+            f"🏠 **Added To New Group**\n\n"
+            f"🆔 **Group ID:** `{group_id}`\n"
+            f"📛 **Group Name:** {group_title}\n"
+            f"✳ **Group Username:** {group_username}\n"
+            f"👤 **Added By:** `{added_by_first_name}`\n"
+            f"🔗 **Username:** @{added_by_username}\n"
+            f"📊 **Members Count:** `{members_count}`"
+        )
+
+
 
 async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> bool:
     if user_id == OWNER_ID or await is_user_sudo(user_id):

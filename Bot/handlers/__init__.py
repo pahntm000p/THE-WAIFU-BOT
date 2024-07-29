@@ -21,7 +21,6 @@ from ..handlers.ping import add_ping_handler  # Import the add_ping_handler func
 from ..handlers.upload import add_delete_handler
 from ..handlers.mic import add_logs_handler
 from .eval import add_eval_handlers
-from .restart import  restart_bot
 from .leaderboard import ctop , tdtop
 from .broadcast import handle_broadcast
 from .mic import transfer_collection

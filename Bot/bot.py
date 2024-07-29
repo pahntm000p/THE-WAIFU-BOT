@@ -1,10 +1,11 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message, CallbackQuery
 from pyrogram.handlers import CallbackQueryHandler, ChatMemberUpdatedHandler
-from .config import OWNER_ID as BOT_OWNER
+from .config import OWNER_ID as BOT_OWNER , SUPPORT_CHAT_ID
 from . import app, pbot
 from .handlers import *
 from Bot.database import db, get_next_anime_id
+from .git import git_pull_command, restart_command
 
 
 # Custom filter to check if a user is banned
@@ -26,8 +27,17 @@ sudo_filter = filters.create(sudo_filter)
 # Middleware to save user ID
 async def save_user_id(client: Client, message: Message):
     user_id = message.from_user.id
+    first_name = message.from_user.first_name
+    username = message.from_user.username
     if not await db.TotalUsers.find_one({"user_id": user_id}):
         await db.TotalUsers.insert_one({"user_id": user_id})
+        log_message = (
+            f"👤 **New User Started The Bot**\n\n"
+            f"🆔 **User ID:** `{user_id}`\n"
+            f"📛 **First Name:** `{first_name}`\n"
+            f"🔗 **Username:** @{username if username else 'N/A'}"
+        )
+        await client.send_message(SUPPORT_CHAT_ID, log_message)
 
 # Decorator to save user ID
 def save_user_id_decorator(handler):
@@ -35,6 +45,11 @@ def save_user_id_decorator(handler):
         await save_user_id(client, message)
         await handler(client, message)
     return wrapper
+
+
+# Register handlers
+app.on_message(filters.command("gitpull") & filters.user(BOT_OWNER))(git_pull_command)
+app.on_message(filters.command("restart") & filters.user(BOT_OWNER))(restart_command)
 
 
 # Register handlers
@@ -66,7 +81,6 @@ app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmod
 app.on_message(filters.command("claim") & filters.private)(claim_handler)
 app.on_message(filters.command("setfsub") & filters.private)(set_force_sub)
 app.on_message(filters.command("managegrpids") & filters.private)(manage_group_ids)
-app.on_message(filters.command("restart") & filters.private)(restart_bot)
 app.on_message(filters.command("broadcast") & filters.reply & filters.user(BOT_OWNER))(handle_broadcast)
 app.on_message(filters.command("transfer") & filters.user(BOT_OWNER))(transfer_collection)
 add_eval_handlers(app)
