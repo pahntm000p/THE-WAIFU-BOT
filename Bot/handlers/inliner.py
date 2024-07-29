@@ -165,8 +165,9 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                             caption = (
                                 f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
                                 f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
-                                f"(<b>{character['rarity_sign']} {character['rarity']}</b>)\n"
-                                f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>"
+                                f"(<b>{character['rarity_sign']} {character['rarity']}) | ({user_character_count}/{total_uploaded_characters})</b>\n"
+                                f"🆔 : <b>{character['id']}</b>"
+
                             )
                         result = InlineQueryResultPhoto(
                             id=str(character["id"]),

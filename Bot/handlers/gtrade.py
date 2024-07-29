@@ -43,7 +43,7 @@ async def get_all_gtrade_users():
 
 async def gtrade_toggle(client: Client, message: Message):
     if len(message.command) < 2:
-        await message.reply("Usage: /gtrade on/off/enable/disable")
+        await message.reply("Usage: /gtreq on/off/enable/disable")
         return
 
     command = message.command[1].lower()
@@ -62,11 +62,11 @@ async def gtrade_toggle(client: Client, message: Message):
             await update_gtrade_user(message.from_user.id, False)
             await message.reply("Global trade requests disabled.")
     else:
-        await message.reply("Usage: /gtrade on/off/enable/disable")
+        await message.reply("Usage: /gtreq on/off/enable/disable")
 
 async def initiate_gtrade(client: Client, message: Message):
     if len(message.command) != 3:
-        await message.reply("Usage: /gtreq {Your Character ID} {Requested Character ID}")
+        await message.reply("Usage: /gtrade {Your Character ID} {Requested Character ID}")
         return
 
     char_a_id = message.command[1]
@@ -107,41 +107,45 @@ async def initiate_gtrade(client: Client, message: Message):
     trade_message_ids[user_a.id] = {"requester_msg_id": None, "receivers_msg_ids": []}
 
     # Send the global trade request to limited users who enabled it
-    for gtrade_user in limited_gtrade_users:
-        user_b_id = gtrade_user["user_id"]
-        if user_b_id == user_a.id:
-            continue
+    batch_size = 5  # Adjust the batch size as needed
+    for i in range(0, len(limited_gtrade_users), batch_size):
+        batch_users = limited_gtrade_users[i:i + batch_size]
+        for gtrade_user in batch_users:
+            user_b_id = gtrade_user["user_id"]
+            if user_b_id == user_a.id:
+                continue
 
-        # Fetch character B details for the recipient
-        char_b_recipient = await get_character_details(char_b_id)
+            # Fetch character B details for the recipient
+            char_b_recipient = await get_character_details(char_b_id)
 
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("Accept", callback_data=f"accept_gtrade|{user_a.id}|{char_a_id}|{char_b_id}"),
-             InlineKeyboardButton("Decline", callback_data=f"decline_gtrade|{user_a.id}")]
-        ])
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Accept", callback_data=f"accept_gtrade|{user_a.id}|{char_a_id}|{char_b_id}"),
+                InlineKeyboardButton("Decline", callback_data=f"decline_gtrade|{user_a.id}")]
+            ])
 
-        msg = await client.send_photo(
-            user_b_id,
-            char_b_recipient['img_url'],
-            caption=f"ℹ** {user_a.mention} has globally requested to trade : **\n\n"
-                    f"✨ **Name** **:** **{char_a.get('name', 'Unknown Character')}**\n"
-                    f"🍁 **Anime** **:** **{char_a.get('anime', 'Unknown Anime')}**\n"
-                    f"🆔 **:** **{char_a_id}**\n\n"
-                    f"**----WITH----**\n\n"
-                    f"✨ **Name** **:** **{char_b.get('name', 'Unknown Character')}**\n"
-                    f"🍁 **Anime** **:** **{char_b.get('anime', 'Unknown Anime')}**\n"
-                    f"🆔 **:** **{char_b_id}**",
-            reply_markup=buttons
-        )
-        trade_message_ids[user_a.id]["receivers_msg_ids"].append(msg.id)
+            msg = await client.send_photo(
+                user_b_id,
+                char_b_recipient['img_url'],
+                caption=f"ℹ** {user_a.mention} has globally requested to trade : **\n\n"
+                        f"✨ **Name** **:** **{char_a.get('name', 'Unknown Character')}**\n"
+                        f"🍁 **Anime** **:** **{char_a.get('anime', 'Unknown Anime')}**\n"
+                        f"🆔 **:** **{char_a_id}**\n\n"
+                        f"**----WITH----**\n\n"
+                        f"✨ **Name** **:** **{char_b.get('name', 'Unknown Character')}**\n"
+                        f"🍁 **Anime** **:** **{char_b.get('anime', 'Unknown Anime')}**\n"
+                        f"🆔 **:** **{char_b_id}**",
+                reply_markup=buttons
+            )
+            trade_message_ids[user_a.id]["receivers_msg_ids"].append(msg.id)
+
+        # Delay between batches
+        await asyncio.sleep(1)  # Adjust the delay as needed
 
     requester_msg = await message.reply(
         f"Your request to trade {char_a.get('name', 'Unknown Character')} with {char_b.get('name', 'Unknown Character')} has been sent to {gtrade_count} users.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel Trade", callback_data=f"cancel_gtrade|{user_a.id}")]])
     )
     trade_message_ids[user_a.id]["requester_msg_id"] = requester_msg.id
-
-    
 
 async def handle_gtrade_callback(client: Client, callback_query: CallbackQuery):
     data = callback_query.data.split("|")

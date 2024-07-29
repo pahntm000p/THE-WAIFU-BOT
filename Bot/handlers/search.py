@@ -10,3 +10,10 @@ async def search(client, message):
     )
     await message.reply("☘️ **Search all the waifus uploaded by clicking the button below**", reply_markup=keyboard)
 
+async def search_anime(client, message):
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("Search Anime", switch_inline_query_current_chat="search.anime ")]
+        ]
+    )
+    await message.reply("☘️ **Search all the anime created by clicking the button below**", reply_markup=keyboard)

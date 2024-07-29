@@ -87,10 +87,11 @@ add_eval_handlers(app)
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler
 add_logs_handler(app)  # Add the logs handler
+app.on_message(filters.command("sanime") & sudo_filter)(search_anime)
 
 # Gtrade
-app.on_message(filters.command("gtrade") & filters.private & command_filter)(gtrade_toggle)
-app.on_message(filters.command("gtreq") & filters.private & command_filter)(initiate_gtrade)
+app.on_message(filters.command("gtreq") & filters.private & command_filter)(gtrade_toggle)
+app.on_message(filters.command("gtrade") & filters.private & command_filter)(initiate_gtrade)
 app.on_callback_query(filters.regex(r"^accept_gtrade\|"))(handle_gtrade_callback)
 app.on_callback_query(filters.regex(r"^decline_gtrade\|"))(handle_gtrade_callback)
 app.on_callback_query(filters.regex(r"^cancel_gtrade\|"))(handle_gtrade_callback)
