@@ -163,11 +163,10 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                             )
                         else:
                             caption = (
-                                f"𝙐𝙬𝙪 , 𝘾𝙝𝙚𝙘𝙠 {user_name}’𝙨 𝘼𝙨𝙨𝙚𝙩\n\n"
-                                f"☘️ <b>{character['name']}  | {character['anime']} | x{image['count']}</b>\n"
-                                f"(<b>{character['rarity_sign']} {character['rarity']}) | ({user_character_count}/{total_uploaded_characters})</b>\n"
-                                f"🆔 : <b>{character['id']}</b>"
-
+                                f"🫧<b>Check out {user_name}'s Collection!</b>🫧\n\n"
+                                f"🧩 <b>{character['name']}</b> | <b>{character['anime']}</b> | <b>x{image['count']}</b>\n"
+                                f"{character['rarity_sign']} <b>{character['rarity']}</b> | ({user_character_count}/{total_uploaded_characters})\n"
+                                f"🔖 <b>ID:</b> <b>{character['id']}</b>"
                             )
                         result = InlineQueryResultPhoto(
                             id=str(character["id"]),

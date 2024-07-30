@@ -2,6 +2,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from ..database import db
 from .preference import get_character_details, get_fav_character, get_smode_preference
+from pyrogram.enums import ParseMode
 
 ITEMS_PER_PAGE = 5
 
@@ -38,13 +39,30 @@ async def send_collection_page(client, message, user_id, page_number, new_messag
     current_page_images = sorted_images[start_index:end_index]
 
     user_first_name = message.from_user.first_name
-    response_text = f"{user_first_name}'s Collection (Page {page_number} of {total_pages}):\n\n"
+    response_text = f"<b>{user_first_name}'s Collection (Page {page_number} of {total_pages}):</b>\n\n"
+
+    # Create a dictionary to count characters per anime and total characters uploaded for each anime
+    anime_character_count = {}
+    anime_total_characters = {}
+    for image in user_collection["images"]:
+        character = await get_character_details(image["image_id"])
+        if character:
+            anime_id = character["anime_id"]
+            if anime_id not in anime_character_count:
+                anime_character_count[anime_id] = 0
+                anime_total_characters[anime_id] = await db.Characters.count_documents({"anime_id": anime_id})
+            anime_character_count[anime_id] += 1
+
     for image in current_page_images:
         character = await get_character_details(image["image_id"])
         if character:
+            anime_id = character["anime_id"]
+            user_anime_count = anime_character_count[anime_id]
+            total_anime_count = anime_total_characters[anime_id]
             response_text += (
-                f"✨{character['name']} [x{image['count']}]\n"
-                f"{character['rarity_sign']} | {character['rarity']} | {character['anime']}\n"
+                f"✨<b>{character['name']} [x{image['count']}]</b>\n"
+                f"<i>{character['rarity_sign']} | {character['rarity']}</i>\n"
+                f"<b>📺 {character['anime']} ({user_anime_count}/{total_anime_count})</b>\n"
                 "⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋⚋\n"
             )
 
@@ -63,12 +81,12 @@ async def send_collection_page(client, message, user_id, page_number, new_messag
     # Pagination buttons
     total_unique_characters = len(user_collection["images"])
     buttons = [
-        [InlineKeyboardButton(f"Smashes ({total_unique_characters})", switch_inline_query_current_chat=f"smashed.{user_id}")],
+        [InlineKeyboardButton(f"📜 Smashes ({total_unique_characters})", switch_inline_query_current_chat=f"smashed.{user_id}")],
     ]
     if page_number < total_pages:
-        buttons.append([InlineKeyboardButton("Next", callback_data=f"page_{user_id}_{page_number+1}")])
+        buttons.append([InlineKeyboardButton("➡️ Next", callback_data=f"page_{user_id}_{page_number+1}")])
     if page_number > 1:
-        buttons.append([InlineKeyboardButton("Previous", callback_data=f"page_{user_id}_{page_number-1}")])
+        buttons.append([InlineKeyboardButton("⬅️ Previous", callback_data=f"page_{user_id}_{page_number-1}")])
 
     reply_markup = InlineKeyboardMarkup(buttons)
 
@@ -79,6 +97,7 @@ async def send_collection_page(client, message, user_id, page_number, new_messag
                 chat_id=message.chat.id,
                 photo=img_url,
                 caption=response_text,
+                parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup
             )
         else:
@@ -86,6 +105,7 @@ async def send_collection_page(client, message, user_id, page_number, new_messag
                 chat_id=message.chat.id,
                 message_id=message.id,
                 caption=response_text,
+                parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup
             )
     else:
@@ -96,6 +116,7 @@ async def send_collection_page(client, message, user_id, page_number, new_messag
                 chat_id=message.chat.id,
                 message_id=message.id,
                 text=response_text,
+                parse_mode=ParseMode.HTML,
                 reply_markup=reply_markup
             )
 
@@ -103,7 +124,7 @@ async def paginate_collection(client: Client, callback_query):
     user_id, page_number = map(int, callback_query.data.split("_")[1:])
 
     if callback_query.from_user.id != user_id:
-        await callback_query.answer("Thats not your collection.", show_alert=True)
+        await callback_query.answer("That's not your collection.", show_alert=True)
         return
 
     message = callback_query.message
