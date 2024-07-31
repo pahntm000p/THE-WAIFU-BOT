@@ -124,7 +124,7 @@ async def paginate_collection(client: Client, callback_query):
     user_id, page_number = map(int, callback_query.data.split("_")[1:])
 
     if callback_query.from_user.id != user_id:
-        await callback_query.answer("That's not your collection.", show_alert=True)
+        await callback_query.answer("🚫 Access Denied: This isn't your collection.", show_alert=True)
         return
 
     message = callback_query.message

@@ -16,4 +16,4 @@ async def search_anime(client, message):
             [InlineKeyboardButton("Search Anime", switch_inline_query_current_chat="search.anime ")]
         ]
     )
-    await message.reply("☘️ **Search all the anime created by clicking the button below**", reply_markup=keyboard)
+    await message.reply("☘️ **Search all the anime in this bot by clicking the button below**", reply_markup=keyboard)

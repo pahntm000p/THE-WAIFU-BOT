@@ -1,4 +1,5 @@
 from ..handlers.start import start
+from ..handlers.help import help
 from ..handlers.inliner import inline_query_handler, smasher_callback_handler , create_anime_callback_handler
 from ..handlers.search import search , search_anime
 from ..handlers.drop import droptime, check_message_count, handle_new_member

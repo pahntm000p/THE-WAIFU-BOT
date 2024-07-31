@@ -5,11 +5,11 @@ from Bot.config import OWNER_ID as BOT_OWNER
 
 async def broadcast_message(client: Client, message: Message):
     if message.from_user.id != BOT_OWNER:
-        await message.reply("**You are not authorized to use this command.**")
+        await message.reply("🚫 **Access Denied:** You are not authorized to use this command.")
         return
 
     if not message.reply_to_message:
-        await message.reply("**Reply to a message to broadcast it.**")
+        await message.reply("❗ **Invalid Request:** Please reply to a message to broadcast it.")
         return
 
     # Get the message to be broadcasted
@@ -31,7 +31,7 @@ async def broadcast_message(client: Client, message: Message):
             await broadcast_msg.forward(chat_id=user_id)
             user_count += 1
         except Exception as e:
-            print(f"Failed to send message to user {user_id}: {e}")
+            print(f"❌ Failed to send message to user {user_id}: {e}")
 
     # Send the broadcast message to each group
     for group_id in group_ids:
@@ -39,9 +39,10 @@ async def broadcast_message(client: Client, message: Message):
             await broadcast_msg.forward(chat_id=group_id)
             group_count += 1
         except Exception as e:
-            print(f"Failed to send message to group {group_id}: {e}")
+            print(f"❌ Failed to send message to group {group_id}: {e}")
 
-    await message.reply(f"**Broadcast completed.**\n\n**Users reached:** {user_count}\n**Groups reached:** {group_count}")
+    await message.reply(f"📢 **Broadcast Completed**\n\n👥 **Users reached:** {user_count}\n💬 **Groups reached:** {group_count}")
+
 
 async def handle_broadcast(client: Client, message: Message):
     await broadcast_message(client, message)

@@ -218,11 +218,9 @@ async def set_cmode(client: Client, message: Message):
         text="**Please select your caption mode:**",
         reply_markup=InlineKeyboardMarkup(
             [
-                [
-                    InlineKeyboardButton("Caption-1", callback_data=f"cmode_select:{user_id}:Caption 1"),
-                    InlineKeyboardButton("Caption-2", callback_data=f"cmode_select:{user_id}:Caption 2"),
-                    InlineKeyboardButton("Close", callback_data=f"cmode_close:{user_id}")
-                ]
+                [InlineKeyboardButton("Caption-1", callback_data=f"cmode_select:{user_id}:Caption 1")],
+                [InlineKeyboardButton("Caption-2", callback_data=f"cmode_select:{user_id}:Caption 2")],
+                [InlineKeyboardButton("Close", callback_data=f"cmode_close:{user_id}")]
             ]
         )
     )

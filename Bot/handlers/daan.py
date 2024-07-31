@@ -6,31 +6,31 @@ from ..config import OWNER_ID as BOT_OWNER
 async def daan(client: Client, message: Message):
     user_id = message.from_user.id
     if user_id != BOT_OWNER and not await is_user_sudo(user_id):
-        await message.reply("You are not authorized to use this command.")
+        await message.reply("🚫 **Access Denied:** You are not authorized to use this command.")
         return
 
     if len(message.command) < 2 or not message.reply_to_message:
-        await message.reply("Please provide an amount and reply to a user's message.")
+        await message.reply("❗ **Error:** Please provide an amount and reply to a user's message.")
         return
 
     try:
         amount = int(message.command[1])
     except ValueError:
-        await message.reply("Please provide a valid number for the amount.")
+        await message.reply("❗ **Error:** Please provide a valid number for the amount.")
         return
 
     reply_user_id = message.reply_to_message.from_user.id
     user = await client.get_users(reply_user_id)
 
     if user.is_bot:
-        await message.reply("You cannot give characters to a bot.")
+        await message.reply("🤖 **Warning:** You cannot give characters to a bot.")
         return
 
     # Fetch all available images from the database
     all_images = await get_all_images()
 
     if not all_images:
-        await message.reply("No characters available to give.")
+        await message.reply("⚠️ **Alert:** No characters available to give.")
         return
 
     # Repeat images if the total characters are less than the amount
@@ -39,4 +39,4 @@ async def daan(client: Client, message: Message):
     for image in images_to_give:
         await update_smashed_image(reply_user_id, image["id"], message.reply_to_message.from_user.mention)
 
-    await message.reply(f"Successfully given {amount} characters to {message.reply_to_message.from_user.mention}.")
+    await message.reply(f"✅ **Success:** {amount} characters have been given to {message.reply_to_message.from_user.mention}.")

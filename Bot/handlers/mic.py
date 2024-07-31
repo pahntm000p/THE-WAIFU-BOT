@@ -211,7 +211,7 @@ async def get_chat_leaderboard_data(client, chat_id):
 
 async def check_character(client: Client, message: Message):
     if len(message.command) < 2:
-        await message.reply("Please provide the character ID to check.")
+        await message.reply("🔍 **Please provide the character ID to check.**")
         return
 
     character_id = message.command[1]
@@ -236,7 +236,8 @@ async def check_character(client: Client, message: Message):
 
     # Create inline keyboard with the "Smashers" button
     keyboard = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("Show Smashers", callback_data=f"show_smashers_{character_id}")]]
+        [[InlineKeyboardButton("👥 Show Smashers", callback_data=f"show_smashers_{character_id}")]]
+
     )
 
     # Send the photo with the caption and the button

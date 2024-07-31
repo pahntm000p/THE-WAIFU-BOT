@@ -56,7 +56,7 @@ async def top(client: Client, message: Message):
     await message.reply(leaderboard_text)
 
 async def gtop(client: Client, message: Message):
-    fetching_msg = await message.reply("Fetching global leaderboard details...")
+    fetching_msg = await message.reply("🔄 **Fetching global leaderboard details...**")
 
     # Fetch collection details for all users
     collections = await db.Collection.find({}).to_list(length=None)
@@ -91,7 +91,7 @@ async def gtop(client: Client, message: Message):
 
 
 async def ctop(client: Client, message: Message):
-    fetching_msg = await message.reply("Fetching top smashes chat leaderboard details...")
+    fetching_msg = await message.reply("🔄 **Fetching chat with top smashes...**")
 
     # Fetch the top chats with the highest smash counts
     groups = await db.Groups.find().sort("smash_count", -1).limit(10).to_list(length=10)
@@ -113,7 +113,8 @@ async def ctop(client: Client, message: Message):
 
 
 async def tdtop(client: Client, message: Message):
-    fetching_msg = await message.reply("Fetching today's leaderboard details...")
+    fetching_msg = await message.reply("🔄 **Fetching today's leaderboard details...**")
+
 
     today_date = datetime.utcnow().date().isoformat()
 

@@ -43,7 +43,7 @@ async def get_all_gtrade_users():
 
 async def gtrade_toggle(client: Client, message: Message):
     if len(message.command) < 2:
-        await message.reply("Usage: /gtreq on/off/enable/disable")
+        await message.reply("📜 **Usage:** /gtreq `on`/`off`/`enable`/`disable`")
         return
 
     command = message.command[1].lower()
@@ -51,22 +51,22 @@ async def gtrade_toggle(client: Client, message: Message):
     
     if command in ["on", "enable"]:
         if is_enabled:
-            await message.reply("Global trade requests are already enabled.")
+            await message.reply("🔄 **Global trade requests are already enabled.**")
         else:
             await update_gtrade_user(message.from_user.id, True)
-            await message.reply("Global trade requests enabled.")
+            await message.reply("✅ **Global trade requests enabled.**")
     elif command in ["off", "disable"]:
         if not is_enabled:
-            await message.reply("Global trade requests are already disabled.")
+            await message.reply("🔄 **Global trade requests are already disabled.**")
         else:
             await update_gtrade_user(message.from_user.id, False)
-            await message.reply("Global trade requests disabled.")
+            await message.reply("🚫 **Global trade requests disabled.**")
     else:
-        await message.reply("Usage: /gtreq on/off/enable/disable")
+        await message.reply("📜 **Usage:** /gtreq `on`/`off`/`enable`/`disable`")
 
 async def initiate_gtrade(client: Client, message: Message):
     if len(message.command) != 3:
-        await message.reply("Usage: /gtrade {Your Character ID} {Requested Character ID}")
+        await message.reply("📜 **Usage:** /gtrade `{Your Character ID}` `{Requested Character ID}`")
         return
 
     char_a_id = message.command[1]
@@ -74,25 +74,25 @@ async def initiate_gtrade(client: Client, message: Message):
     user_a = message.from_user
 
     if char_a_id == char_b_id:
-        await message.reply("You cannot trade the same character with itself.")
+        await message.reply("🚫 **You cannot trade the same character with itself.**")
         return
 
     if user_a.id in pending_gtrades:
-        await message.reply("You have already initiated a global trade. Please confirm or cancel it before starting a new one.")
+        await message.reply("⚠️ **You have already initiated a global trade. Please confirm or cancel it before starting a new one.**")
         return
 
     # Fetch user A's collection
     user_a_collection = await get_user_collection(user_a.id)
 
     if not user_a_collection or not any(img['image_id'] == char_a_id for img in user_a_collection.get('images', [])):
-        await message.reply("You don't have the specified character to trade.")
+        await message.reply("❌ **You don't have the specified character to trade.**")
         return
 
     char_a = await get_character_details(char_a_id)
     char_b = await get_character_details(char_b_id)
 
     if not char_a or not char_b:
-        await message.reply("One of the characters doesn't exist.")
+        await message.reply("🚫 **One of the characters doesn't exist.**")
         return
 
     # Get all users who have enabled global trade requests
@@ -119,8 +119,8 @@ async def initiate_gtrade(client: Client, message: Message):
             char_b_recipient = await get_character_details(char_b_id)
 
             buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("Accept", callback_data=f"accept_gtrade|{user_a.id}|{char_a_id}|{char_b_id}"),
-                InlineKeyboardButton("Decline", callback_data=f"decline_gtrade|{user_a.id}")]
+                [InlineKeyboardButton("✅ Accept", callback_data=f"accept_gtrade|{user_a.id}|{char_a_id}|{char_b_id}"),
+                 InlineKeyboardButton("❌ Decline", callback_data=f"decline_gtrade|{user_a.id}")]
             ])
 
             msg = await client.send_photo(

@@ -54,6 +54,7 @@ app.on_message(filters.command("restart") & filters.user(BOT_OWNER))(restart_com
 
 # Register handlers
 app.on_message(filters.command("start") & filters.private & command_filter)(save_user_id_decorator(start))
+app.on_message(filters.command("help") & filters.private & command_filter)(save_user_id_decorator(help))
 app.on_message(filters.command("search") & command_filter)(save_user_id_decorator(search))
 app.on_message(filters.command("droptime") & filters.group & command_filter)(save_user_id_decorator(droptime))
 app.on_message(filters.command("smash") & filters.group & command_filter)(save_user_id_decorator(smash_image))

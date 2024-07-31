@@ -23,7 +23,7 @@ async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
         members_count = await client.get_chat_members_count(group_id)
 
         await update_message_count(group_id, 100, 0)
-        await client.send_message(group_id, "Default droptime set to 100 messages.")
+        await client.send_message(group_id, "**Random waifus will be dropped every 100 messages here !!**")
 
         await client.send_message(
             SUPPORT_CHAT_ID,
@@ -47,28 +47,29 @@ async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> boo
 
 async def droptime(client: Client, message: Message):
     if len(message.command) < 2:
-        await message.reply("Please provide a message count.")
+        await message.reply("⚠️ **Please provide a message count.**")
         return
 
     try:
         msg_count = int(message.command[1])
     except ValueError:
-        await message.reply("Please provide a valid number for message count.")
+        await message.reply("🚫 **Please provide a valid number for the message count.**")
         return
 
     group_id = message.chat.id
     user_id = message.from_user.id
 
     if not await is_admin_or_special(client, group_id, user_id):
-        await message.reply("You don't have rights to change the droptime in this chat")
+        await message.reply("🚫 **You don't have the rights to change the droptime in this chat.**")
         return
 
     if msg_count < 100 and user_id != OWNER_ID and not await is_user_sudo(user_id):
-        await message.reply("Droptime cannot be set to less than 100.")
+        await message.reply("⚠️ **Droptime cannot be set to less than 100 messages.**")
         return
 
     await update_message_count(group_id, msg_count, 0)
-    await message.reply(f"Random image will be dropped every {msg_count} messages in this group.")
+    await message.reply(f"🎉 **Random waifus will be dropped every {msg_count} messages in this group.**")
+
 
 async def check_message_count(client: Client, message: Message):
     user_id = message.from_user.id
@@ -87,7 +88,7 @@ async def check_message_count(client: Client, message: Message):
 
         if len(message_timestamps[user_id]) >= 5:
             await ban_user(user_id, 10)  # Ban for 10 minutes
-            await client.send_message(group_id, f"User {message.from_user.first_name} has been temporarily banned for 10 minutes for spamming.")
+            await client.send_message(group_id, f"🚫 **User {message.from_user.first_name} has been temporarily banned for 10 minutes due to spamming.**")
             return
 
         count_doc = await get_message_count(group_id)
