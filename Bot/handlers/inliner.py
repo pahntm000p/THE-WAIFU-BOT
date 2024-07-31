@@ -155,18 +155,22 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
 
                         if icaption_preference == "Caption 1":
                             caption = (
-                                f"<b>Look at {user_name}'s smashed character !!</b>\n\n"
-                                f"✨<b>Name :</b> <b>{character['name']} | x{image['count']}</b>\n"
-                                f"{character['rarity_sign']} <b>Rarity :</b> <b>{character['rarity']}</b>\n"
-                                f"🍁<b>Anime :</b> <b>{character['anime']} ({user_character_count}/{total_uploaded_characters})</b>\n\n"
-                                f"🆔 : <b>{character['id']}</b>"
-                            )
+    f"<b>╔═════ ∘◦ ✾ ◦∘ ═════╗</b>\n"
+    f"<b>   {user_name}'s {character['rarity']} Smash</b>\n"
+    f"<b>╚═════ ∘◦ ❈ ◦∘ ═════╝</b>\n\n"
+    f"<b>🍒 Name </b> <b>≿ {character['name']} (x{image['count']}) ≾</b>\n"
+    f"<b>🎴 Anime </b> <b>⊱ {character['anime']} ({user_character_count}/{total_uploaded_characters}) ⊰</b>\n"
+    f"<b>{character['rarity_sign']} Rarity:</b> <b> {character['rarity']} </b>\n\n"
+    f"<b>🔖 ID </b> <b>≼ {character['id']} ≽</b>"
+)
+
+
+
                         else:
                             caption = (
-                                f"🫧<b>Check out {user_name}'s Collection!</b>🫧\n\n"
-                                f"🧩 <b>{character['name']}</b> | <b>{character['anime']}</b> | <b>x{image['count']}</b>\n"
-                                f"{character['rarity_sign']} <b>{character['rarity']}</b> | ({user_character_count}/{total_uploaded_characters})\n"
-                                f"🔖 <b>ID:</b> <b>{character['id']}</b>"
+                                f"🫧<b>Check out {user_name}'s Smash!</b>🫧\n\n"
+                                f"➤ 🧩 <b>{character['name']}</b>  <b>x{image['count']}</b> | <b>{character['anime']}</b> ({user_character_count}/{total_uploaded_characters})\n"
+                                f"➤ {character['rarity_sign']} <b><i>({character['rarity']})</i></b> | 🔖 <b>{character['id']}</b> \n"
                             )
                         result = InlineQueryResultPhoto(
                             id=str(character["id"]),

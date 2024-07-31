@@ -20,7 +20,7 @@ async def update_user_collection(user_id, updated_images):
 
 async def gift_character(client: Client, message: Message):
     if len(message.command) != 2:
-        await message.reply("Usage: /gift {id}, reply to the user you want to gift.")
+        await message.reply("Usage: /gift id , reply to the user you want to gift.")
         return
 
     image_id = message.command[1]

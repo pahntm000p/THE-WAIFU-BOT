@@ -15,7 +15,7 @@ async def generate_leaderboard_text(title, leaderboard, emoji):
     medals = ["🥇", "🥈", "🥉"]
     for index, entry in enumerate(leaderboard, start=1):
         rank = medals[index - 1] if index <= 3 else f"**{index}**"
-        text += f"{rank} {entry['mention']} —> **{entry['total_characters']} ({entry['total_unique_characters']})**\n"
+        text += f"{rank} {entry['mention']} ➣ **{entry['total_characters']} ({entry['total_unique_characters']})**\n"
     return text
 
 async def top(client: Client, message: Message):
