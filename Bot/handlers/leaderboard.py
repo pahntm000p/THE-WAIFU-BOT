@@ -1,17 +1,22 @@
-# BOT/handlers/leaderboard.py
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from pyrogram.errors import PeerIdInvalid
 from Bot.database import db
 from datetime import datetime
 
 
-
 async def fetch_user_names(client, user_ids):
-    users = await client.get_users(user_ids)
-    return {user.id: user.mention for user in users}
+    users = {}
+    for user_id in user_ids:
+        try:
+            user = await client.get_users(user_id)
+            users[user.id] = user.mention
+        except PeerIdInvalid:
+            continue
+    return users
 
 async def generate_leaderboard_text(title, leaderboard, emoji):
-    text = f"{emoji}** {title} **{emoji}\n\n"
+    text = f"{emoji} **{title}** {emoji}\n\n"
     medals = ["🥇", "🥈", "🥉"]
     for index, entry in enumerate(leaderboard, start=1):
         rank = medals[index - 1] if index <= 3 else f"**{index}**"
@@ -19,7 +24,7 @@ async def generate_leaderboard_text(title, leaderboard, emoji):
     return text
 
 async def top(client: Client, message: Message):
-    fetching_msg = await message.reply("Fetching leaderboard details...")
+    fetching_msg = await message.reply("🔄 **Fetching leaderboard details...**")
 
     # Fetch all member IDs in the group chat
     member_ids = [member.user.id async for member in client.get_chat_members(message.chat.id)]
@@ -46,11 +51,11 @@ async def top(client: Client, message: Message):
 
     # Update leaderboard with user mentions
     for entry in leaderboard[:10]:
-        entry["mention"] = user_mentions[entry["user_id"]]
+        entry["mention"] = user_mentions.get(entry["user_id"], f"User ID: {entry['user_id']}")
 
     # Generate the leaderboard text
     group_name = message.chat.title if message.chat.title else "Group"
-    leaderboard_text = await generate_leaderboard_text(f"{group_name}'s Top 10 Smashers", leaderboard[:10], "⛩")
+    leaderboard_text = await generate_leaderboard_text(f"{group_name}'s Top 10 Smashers", leaderboard[:10], "⛩️")
 
     await fetching_msg.delete()
     await message.reply(leaderboard_text)
@@ -81,14 +86,13 @@ async def gtop(client: Client, message: Message):
 
     # Update leaderboard with user mentions
     for entry in leaderboard[:10]:
-        entry["mention"] = user_mentions[entry["user_id"]]
+        entry["mention"] = user_mentions.get(entry["user_id"], f"User ID: {entry['user_id']}")
 
     # Generate the leaderboard text
-    leaderboard_text = await generate_leaderboard_text("Global Top 10 Smashers", leaderboard[:10], "🌎")
+    leaderboard_text = await generate_leaderboard_text("Global Top 10 Smashers ", leaderboard[:10], "🌍")
 
     await fetching_msg.delete()
     await message.reply(leaderboard_text)
-
 
 async def ctop(client: Client, message: Message):
     fetching_msg = await message.reply("🔄 **Fetching chat with top smashes...**")
@@ -111,10 +115,8 @@ async def ctop(client: Client, message: Message):
     await fetching_msg.delete()
     await message.reply(text, disable_web_page_preview=True)
 
-
 async def tdtop(client: Client, message: Message):
     fetching_msg = await message.reply("🔄 **Fetching today's leaderboard details...**")
-
 
     today_date = datetime.utcnow().date().isoformat()
 
