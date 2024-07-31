@@ -73,9 +73,9 @@ async def get_fav_character(user_id):
 async def fav_confirm(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     data = callback_query.data.split(":")
-    
+
     if len(data) != 3 or int(data[1]) != user_id:
-        await callback_query.answer("This action is not for you.", show_alert=True)
+        await callback_query.answer("🚫 This action is not for you.", show_alert=True)
         return
 
     fav_character_id = data[2]
@@ -90,11 +90,12 @@ async def fav_confirm(client: Client, callback_query: CallbackQuery):
     # Edit the message to confirm the action
     character = await get_character_details(fav_character_id)
     await callback_query.message.edit_caption(
-        caption=f"{character['name']} has been set as your favorite character!",
+        caption=f"✨ **{character['name']}** has been set as your favorite character! 🎉",
         reply_markup=None
     )
 
-    await callback_query.answer("Favorite character set successfully!")
+    await callback_query.answer("✅ Favorite character set successfully!")
+
 
 # Callback query handler for canceling the action
 async def fav_cancel(client: Client, callback_query: CallbackQuery):
@@ -111,7 +112,8 @@ async def fav_cancel(client: Client, callback_query: CallbackQuery):
         reply_markup=None
     )
 
-    await callback_query.answer("Operation canceled.")
+    await callback_query.answer("❌ Operation canceled.")
+
 
 
 
@@ -119,36 +121,40 @@ async def smode(client: Client, message: Message):
     user_id = message.from_user.id
 
     await message.reply(
-        "You can change your smashes interface using these buttons:",
+        "🔧 **Customize your smashes interface using the buttons below:**",
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("Default", callback_data=f"smode_default:{user_id}")],
-                [InlineKeyboardButton("Sort by Rarity", callback_data=f"smode_sort:{user_id}")],
-                [InlineKeyboardButton("Close", callback_data=f"smode_close:{user_id}")]
+                [InlineKeyboardButton("🖼 Default", callback_data=f"smode_default:{user_id}")],
+                [InlineKeyboardButton("🔢 Sort by Rarity", callback_data=f"smode_sort:{user_id}")],
+                [InlineKeyboardButton("❌ Close", callback_data=f"smode_close:{user_id}")]
             ]
         )
     )
+
 
 async def smode_default(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     data = callback_query.data.split(":")
 
     if len(data) != 2 or int(data[1]) != user_id:
-        await callback_query.answer("This action is not for you.", show_alert=True)
+        await callback_query.answer("🚫 **This action is not for you.**", show_alert=True)
         return
 
+    # Update the smashes interface setting to default
     await db.Preference.update_one(
         {"user_id": user_id},
         {"$set": {"smode": "Default"}},
         upsert=True
     )
 
+    # Edit the message to confirm the change
     await callback_query.message.edit_text(
-        "**Your smashes interface has been set to: Default**",
+        "**🔄 Your smashes interface has been set to: Default**",
         reply_markup=None
     )
 
-    await callback_query.answer("Smashes interface set to default.")
+    await callback_query.answer("✅ Smashes interface set to default.")
+
 
 async def smode_sort(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -190,7 +196,7 @@ async def smode_rarity(client: Client, callback_query: CallbackQuery):
     )
 
     await callback_query.message.edit_text(
-        f"Your smashes sort system is successfully set to: {rarity}",
+        f"🔄 **Your smashes sort system has been successfully set to: {rarity}**",
         reply_markup=None
     )
 
@@ -215,15 +221,16 @@ async def set_cmode(client: Client, message: Message):
 
     await client.send_message(
         chat_id=message.chat.id,
-        text="**Please select your caption mode:**",
+        text="**📝 Please select your caption mode:**",
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("Caption-1", callback_data=f"cmode_select:{user_id}:Caption 1")],
-                [InlineKeyboardButton("Caption-2", callback_data=f"cmode_select:{user_id}:Caption 2")],
-                [InlineKeyboardButton("Close", callback_data=f"cmode_close:{user_id}")]
+                [InlineKeyboardButton("🔹 Caption 1", callback_data=f"cmode_select:{user_id}:Caption 1")],
+                [InlineKeyboardButton("🔸 Caption 2", callback_data=f"cmode_select:{user_id}:Caption 2")],
+                [InlineKeyboardButton("❌ Close", callback_data=f"cmode_close:{user_id}")]
             ]
         )
     )
+
 
 async def cmode_select(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
@@ -240,7 +247,10 @@ async def cmode_select(client: Client, callback_query: CallbackQuery):
         upsert=True
     )
 
-    await callback_query.edit_message_text(f"**Your Inliner-Caption preference has been set to {selected_mode}.**")
+    await callback_query.edit_message_text(
+    f"**Your inline caption preference has been set to:**\n\n"
+    f"**{selected_mode}** ✅"
+)
 
 async def cmode_close(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
