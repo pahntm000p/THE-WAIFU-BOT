@@ -291,11 +291,12 @@ async def process_edit_step(client: Client, message: Message):
                 anime_id = anime_id_text
 
             anime_id = int(anime_id)
-        except (ValueError, AttributeError) as e:
+        except (ValueError, AttributeError):
+            search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
             sent = await message.reply(
-                f"Invalid anime ID. Please provide a valid anime ID. Error: {e}",
+                "❗ Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+                    [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
                 )
             )
             edit_data[user_id]["last_message_id"] = sent.id
@@ -403,6 +404,43 @@ async def delete_character(client: Client, message: Message):
         await message.reply(f"No character found with ID {char_id}.")
         return
 
+    # Send confirmation message with inline buttons
+    character_details = (
+        f"🐼 Name: {character.get('name', 'Unknown')}\n"
+        f"🌺 Anime: {character.get('anime', 'Unknown')}\n"
+        f"{character.get('rarity_sign', '❓')} Rarity: {character.get('rarity', 'Unknown')}\n"
+        f"🪪 ID: {char_id}"
+    )
+    
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Confirm", callback_data=f"confirm_delete_{char_id}"),
+                InlineKeyboardButton("❌ Cancel", callback_data="cancel_delete")
+            ]
+        ]
+    )
+
+    await message.reply_text(
+        f"Are you sure you want to delete the following character?\n\n{character_details}",
+        reply_markup=keyboard
+    )
+
+def add_delete_handler(app: Client):
+    @app.on_message(filters.command("delete"))
+    async def handle_delete(client: Client, message: Message):
+        await delete_character(client, message)
+
+
+async def confirm_delete(client: Client, callback_query: CallbackQuery):
+    char_id = callback_query.data.split("_")[2]
+    user_id = callback_query.from_user.id
+
+    character = await db.Characters.find_one({"id": char_id})
+    if not character:
+        await callback_query.message.edit_text(f"No character found with ID {char_id}.")
+        return
+    
     # Log the deletion in the support chat
     user = await client.get_users(user_id)
     user_mention = f"<a href='tg://user?id={user_id}'>{user.first_name}</a>"
@@ -419,10 +457,18 @@ async def delete_character(client: Client, message: Message):
     
     # Delete the character
     await db.Characters.delete_one({"id": char_id})
-    await message.reply_text(f"Character with ID {char_id} deleted successfully.")
+    await callback_query.message.edit_text(f"Character with ID {char_id} deleted successfully.")
 
-def add_delete_handler(app: Client):
-    @app.on_message(filters.command("delete"))
-    async def handle_delete(client: Client, message: Message):
-        await delete_character(client, message)
+async def cancel_delete(client: Client, callback_query: CallbackQuery):
+    await callback_query.message.edit_text("Character deletion cancelled.")
+
+def add_callback_query_handlers(app: Client):
+    @app.on_callback_query(filters.regex(r"^confirm_delete_\d+$"))
+    async def handle_confirm_delete(client: Client, callback_query: CallbackQuery):
+        await confirm_delete(client, callback_query)
+
+    @app.on_callback_query(filters.regex(r"^cancel_delete$"))
+    async def handle_cancel_delete(client: Client, callback_query: CallbackQuery):
+        await cancel_delete(client, callback_query)
+
 

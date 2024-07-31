@@ -41,7 +41,7 @@ async def initiate_trade(client: Client, message: Message):
         return
 
     if user_a.id in pending_trades:
-        await message.reply("You have already initiated a trade. Please confirm or cancel it before starting a new one.")
+        await message.reply("You have already initiated a trade. Please confirm or cancel it using /deltrade before starting a new one.")
         return
 
     # Fetch user collections
@@ -166,5 +166,27 @@ async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
             await callback_query.edit_message_text(f"Trade Completed: {user_a.mention} traded {char_a_details.get('name', 'Unknown Character')} for {user_b.mention}'s {char_b_details.get('name', 'Unknown Character')}.")
     else:
         await callback_query.answer("Only the user who received the trade request can confirm it.", show_alert=True)
+
+# Command to cancel the trade manually
+async def cancel_trade_command(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id not in pending_trades:
+        await message.reply("You have no pending trades to cancel.")
+        return
+
+    trade_id = pending_trades[user_id]
+    user_a_id, user_b_id = map(int, trade_id.split("_"))
+
+    if user_id == user_a_id:
+        other_user_id = user_b_id
+    else:
+        other_user_id = user_a_id
+
+    del pending_trades[user_a_id]
+    del pending_trades[user_b_id]
+
+    # Notify both users that the trade was canceled
+    await message.reply("Trade canceled successfully.")
+
 
 

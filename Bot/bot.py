@@ -86,6 +86,7 @@ app.on_message(filters.command("transfer") & filters.user(BOT_OWNER))(transfer_c
 add_eval_handlers(app)
 add_ping_handler(app)
 add_delete_handler(app)  # Add the delete handler
+add_callback_query_handlers(app)
 add_logs_handler(app)  # Add the logs handler
 app.on_message(filters.command("sanime") & sudo_filter)(search_anime)
 
@@ -98,7 +99,11 @@ app.on_callback_query(filters.regex(r"^cancel_gtrade\|"))(handle_gtrade_callback
 
 # Register the command and callback handlers
 app.on_message(filters.command("trade") & filters.reply & filters.group & command_filter)(initiate_trade)
+app.on_message(filters.command("deltrade") & filters.group & command_filter)(cancel_trade_command)
+
+# Callback query handlers
 app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade)\|") & command_filter)(handle_trade_callback)
+
 app.add_handler(CallbackQueryHandler(confirm_gift, filters.regex(r"^confirm_gift\|") & command_filter))
 app.add_handler(CallbackQueryHandler(cancel_gift, filters.regex(r"^cancel_gift\|") & command_filter))
 app.add_handler(CallbackQueryHandler(delete_collection, filters.regex(r"^delete_collection_") & command_filter))

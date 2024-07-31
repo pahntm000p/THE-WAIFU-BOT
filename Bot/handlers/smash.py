@@ -38,7 +38,7 @@ async def smash_image(client: Client, message: Message):
         # Fetch additional details from the Characters collection
         character = await get_character_details(drop["image_id"])
         if not character:
-            await message.reply("**Character details not found in the database.**")
+            print("Characters Details Not Found In DB")
             return
 
         # Update the smashed image in the user's collection
@@ -66,7 +66,7 @@ async def smash_image(client: Client, message: Message):
         rarity = character.get("rarity", "")
         anime = character.get("anime", "")
         await message.reply(
-            f"**🎯 You Successfully Smashed A Character !!\n\n"
+            f"**🎯 Look You Smashed A {rarity} Character !!\n\n"
             f"✨ Name : {drop['image_name']}\n"
             f"{rarity_sign} Rarity : {rarity}\n"
             f"🍁 Anime : {anime}\n\n"
@@ -77,6 +77,6 @@ async def smash_image(client: Client, message: Message):
         dropped_image_link = drop.get("dropped_image_link", "")
         await message.reply(
             f"**❌ Incorrect guess : {guessed_name}!!**\n\n"
-            f"**Please try again [🔼]({dropped_image_link})**",
+            f"**Please try again [🔼 Waifu]({dropped_image_link})**",
             disable_web_page_preview=True
         )

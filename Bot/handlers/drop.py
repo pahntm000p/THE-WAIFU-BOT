@@ -100,7 +100,7 @@ async def check_message_count(client: Client, message: Message):
                 current_count = 0
                 character_doc = await get_random_character()
                 if not character_doc:
-                    await client.send_message(group_id, "No characters available to drop.")
+                    print("Lol..No Characters Uploaded")
                     return
 
                 character = character_doc[0]
