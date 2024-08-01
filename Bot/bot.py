@@ -100,10 +100,9 @@ app.on_callback_query(filters.regex(r"^cancel_gtrade\|"))(handle_gtrade_callback
 
 # Register the command and callback handlers
 app.on_message(filters.command("trade") & filters.reply & filters.group & command_filter)(initiate_trade)
-app.on_message(filters.command("deltrade") & filters.group & command_filter)(cancel_trade_command)
 
 # Callback query handlers
-app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade)\|") & command_filter)(handle_trade_callback)
+app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade|cancel_last_trade)\|") & command_filter)(handle_trade_callback)
 
 app.add_handler(CallbackQueryHandler(confirm_gift, filters.regex(r"^confirm_gift\|") & command_filter))
 app.add_handler(CallbackQueryHandler(cancel_gift, filters.regex(r"^cancel_gift\|") & command_filter))
