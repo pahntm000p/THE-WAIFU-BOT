@@ -19,7 +19,7 @@ from ..handlers.gtrade import gtrade_toggle, initiate_gtrade, handle_gtrade_call
 from ..handlers.upload import start_upload, process_upload_step, set_rarity, cancel_upload, upload_data
 from ..handlers.upload import start_edit, select_field, set_edit_rarity, cancel_edit, process_edit_step, edit_data
 from ..handlers.ping import add_ping_handler  # Import the add_ping_handler function
-from ..handlers.upload import add_delete_handler
+from ..handlers.upload import add_delete_handler, process_edit_photo
 from ..handlers.mic import add_logs_handler
 from .eval import add_eval_handlers
 from .leaderboard import ctop , tdtop
