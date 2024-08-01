@@ -3,7 +3,8 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from pyrogram.enums import ParseMode
 from datetime import datetime, timedelta
 from Bot.database import db, get_next_id, is_user_sudo
-from Bot.config import SUPPORT_CHAT_ID , OWNER_ID
+from Bot.config import SUPPORT_CHAT_ID, OWNER_ID
+from telegraph import Telegraph
 import re
 
 RARITY_MAPPING = {
@@ -16,10 +17,13 @@ RARITY_MAPPING = {
 upload_data = {}
 edit_data = {}
 
+telegraph = Telegraph()
+telegraph.create_account(short_name='WaifuBot')
+
 async def start_upload(client: Client, message: Message):
     upload_data[message.from_user.id] = {}
     sent = await message.reply(
-        "🖼️ Please send the image URL.",
+        "🖼️ Please send the image.",
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
         )
@@ -38,8 +42,12 @@ async def process_upload_step(client: Client, message: Message):
         return
 
     step = len(upload_data[user_id])
-    if step == 1:
-        upload_data[user_id]["img_url"] = message.text
+    if step == 1 and message.photo:
+        file_id = message.photo.file_id
+        file_path = await client.download_media(file_id)
+        response = telegraph.upload_file(file_path)  # Corrected function call
+        img_url = f"https://telegra.ph{response[0]['src']}"
+        upload_data[user_id]["img_url"] = img_url
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
         sent = await message.reply(
             "📝 Please send the character name.",
@@ -48,6 +56,7 @@ async def process_upload_step(client: Client, message: Message):
             )
         )
         upload_data[user_id]["last_message_id"] = sent.id
+
     elif step == 2:
         upload_data[user_id]["name"] = message.text.replace("-", " ")
         await client.delete_messages(message.chat.id, upload_data[user_id]["last_message_id"])
@@ -179,7 +188,6 @@ async def start_edit(client: Client, message: Message):
         await message.reply(f"No character found with ID {char_id}.")
         return
 
-    # Prepare the caption with character details
     caption = (
         f"🐼 Name: {character.get('name', 'Unknown')}\n"
         f"🌺 Anime: {character.get('anime', 'Unknown')}\n"
@@ -188,13 +196,12 @@ async def start_edit(client: Client, message: Message):
         "Select the field you want to edit:"
     )
 
-    # Send the message with character details and inline buttons
     sent = await message.reply_photo(
         photo=character.get('img_url', ''),
         caption=caption,
         reply_markup=InlineKeyboardMarkup(
             [
-                [InlineKeyboardButton("Image URL", callback_data="edit_field_img_url")],
+                [InlineKeyboardButton("Image", callback_data="edit_field_img")],
                 [InlineKeyboardButton("Name", callback_data="edit_field_name")],
                 [InlineKeyboardButton("Anime", callback_data="edit_field_anime")],
                 [InlineKeyboardButton("Rarity", callback_data="edit_field_rarity")],
@@ -203,7 +210,6 @@ async def start_edit(client: Client, message: Message):
         )
     )
 
-    # Store necessary information in edit_data
     edit_data[message.from_user.id] = {
         "char_id": char_id,
         "old_character": character,
@@ -235,7 +241,7 @@ async def select_field(client: Client, callback_query: CallbackQuery):
         )
     else:
         field_prompt = {
-            "img_url": "Please provide the new Image URL.",
+            "img": "Please send the new image.",
             "name": "Please provide the new Name.",
             "anime": "Please provide the new Anime ID or use the button below to search for the anime."
         }
@@ -256,68 +262,104 @@ async def process_edit_step(client: Client, message: Message):
         return
 
     field = edit_data[user_id]["field"]
-    value = message.text.strip()
 
     await client.delete_messages(message.chat.id, edit_data[user_id]["last_message_id"])
 
     updates = {}
     if field == "img_url":
-        if not re.match(r"^https?://", value):
+        # Process photo messages
+        if message.photo:
+            file_id = message.photo.file_id
+            file_path = await client.download_media(file_id)
+            response = telegraph.upload_file(file_path)
+            img_url = f"https://telegra.ph{response[0]['src']}"
+            updates["img_url"] = img_url
+        else:
             sent = await message.reply(
-                "Invalid URL format. Please provide a valid image URL.",
+                "Please send a valid image.",
                 reply_markup=InlineKeyboardMarkup(
                     [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
                 )
             )
             edit_data[user_id]["last_message_id"] = sent.id
             return
-        updates["img_url"] = value
-    elif field == "name":
-        updates["name"] = value.replace("-", " ")
-    elif field == "anime":
-        anime_id_text = value
-        anime_id = None
-        try:
-            # Check if the text contains the formatted anime info
-            if "🆔:" in anime_id_text:
-                # Use regex to extract the numeric ID
-                match = re.search(r'🆔:\s*(\d+)', anime_id_text)
-                if match:
-                    anime_id = match.group(1)
+    else:
+        # Process text messages
+        if message.text is None:
+            sent = await message.reply(
+                "Invalid input. Please provide the necessary information.",
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+                )
+            )
+            edit_data[user_id]["last_message_id"] = sent.id
+            return
+
+        value = message.text.strip()
+        if field == "name":
+            updates["name"] = value.replace("-", " ")
+        elif field == "anime":
+            anime_id_text = value
+            anime_id = None
+            try:
+                # Check if the text contains the formatted anime info
+                if "🆔:" in anime_id_text:
+                    # Use regex to extract the numeric ID
+                    match = re.search(r'🆔:\s*(\d+)', anime_id_text)
+                    if match:
+                        anime_id = match.group(1)
+                    else:
+                        raise ValueError("Invalid anime ID format.")
                 else:
-                    raise ValueError("Invalid anime ID format.")
-            else:
-                # Assume the text is directly the anime ID
-                anime_id = anime_id_text
+                    # Assume the text is directly the anime ID
+                    anime_id = anime_id_text
 
-            anime_id = int(anime_id)
-        except (ValueError, AttributeError):
-            search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
-            sent = await message.reply(
-                "❗ Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
-                reply_markup=InlineKeyboardMarkup(
-                    [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
+                anime_id = int(anime_id)
+            except (ValueError, AttributeError):
+                search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
+                sent = await message.reply(
+                    "❗ Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
+                    reply_markup=InlineKeyboardMarkup(
+                        [[search_button], [InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload")]]
+                    )
                 )
-            )
-            edit_data[user_id]["last_message_id"] = sent.id
-            return
+                edit_data[user_id]["last_message_id"] = sent.id
+                return
 
-        anime = await db.Anime.find_one({"anime_id": anime_id})
-        if not anime:
-            sent = await message.reply(
-                "Invalid anime ID. Please provide a valid anime ID.",
-                reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+            anime = await db.Anime.find_one({"anime_id": anime_id})
+            if not anime:
+                sent = await message.reply(
+                    "Invalid anime ID. Please provide a valid anime ID.",
+                    reply_markup=InlineKeyboardMarkup(
+                        [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_edit")]]
+                    )
                 )
-            )
-            edit_data[user_id]["last_message_id"] = sent.id
-            return
+                edit_data[user_id]["last_message_id"] = sent.id
+                return
 
-        updates["anime"] = anime["name"]
-        updates["anime_id"] = anime_id
+            updates["anime"] = anime["name"]
+            updates["anime_id"] = anime_id
 
     edit_data[user_id]["updates"] = updates
     await finalize_edit(client, message.chat.id, user_id)
+
+async def process_edit_photo(client: Client, message: Message):
+    user_id = message.from_user.id
+    if user_id not in edit_data:
+        return
+
+    await client.delete_messages(message.chat.id, edit_data[user_id]["last_message_id"])
+
+    updates = {}
+    file_id = message.photo.file_id
+    file_path = await client.download_media(file_id)
+    response = telegraph.upload_file(file_path)
+    img_url = f"https://telegra.ph{response[0]['src']}"
+    updates["img_url"] = img_url
+
+    edit_data[user_id]["updates"] = updates
+    await finalize_edit(client, message.chat.id, user_id)
+
 
 async def set_edit_rarity(client: Client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
