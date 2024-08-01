@@ -41,7 +41,10 @@ async def initiate_trade(client: Client, message: Message):
         return
 
     if user_a.id in pending_trades:
-        await message.reply("⏳ **You have already initiated a trade. Please confirm or cancel it using /deltrade before starting a new one.**")
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("❌ Cancel Last Trade", callback_data=f"cancel_last_trade|{user_a.id}")]
+        ])
+        await message.reply("⏳ **You have already initiated a trade. Please confirm or cancel it using the button below before starting a new one.**", reply_markup=buttons)
         return
 
     # Fetch user collections
@@ -84,7 +87,6 @@ async def initiate_trade(client: Client, message: Message):
         reply_markup=buttons
     )
 
-
 async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
     data = callback_query.data.split("|")
     if len(data) < 2:
@@ -98,12 +100,19 @@ async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
         await callback_query.answer("Invalid trade data.", show_alert=True)
         return
 
-    user_a_id, user_b_id = map(int, trade_id.split("_"))
-
-    # Ensure only the user who received the trade request can click the buttons
-    if callback_query.from_user.id != user_b_id:
-        await callback_query.answer("You are not allowed to perform this action.", show_alert=True)
+    if action == "cancel_last_trade":
+        user_a_id = int(data[1])
+        if user_a_id not in pending_trades:
+            await callback_query.answer("No pending trade to cancel.", show_alert=True)
+            return
+        trade_id = pending_trades[user_a_id]
+        user_a_id, user_b_id = map(int, trade_id.split("_"))
+        del pending_trades[user_a_id]
+        del pending_trades[user_b_id]
+        await callback_query.edit_message_text("🚫 **Trade canceled successfully.**")
         return
+
+    user_a_id, user_b_id = map(int, trade_id.split("_"))
 
     if action == "cancel_trade":
         del pending_trades[user_a_id]
@@ -167,28 +176,5 @@ async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
             await callback_query.edit_message_text(f"Trade Completed: {user_a.mention} traded {char_a_details.get('name', 'Unknown Character')} for {user_b.mention}'s {char_b_details.get('name', 'Unknown Character')}.")
     else:
         await callback_query.answer("Only the user who received the trade request can confirm it.", show_alert=True)
-
-# Command to cancel the trade manually
-async def cancel_trade_command(client: Client, message: Message):
-    user_id = message.from_user.id
-    if user_id not in pending_trades:
-        await message.reply("You have no pending trades to cancel.")
-        return
-
-    trade_id = pending_trades[user_id]
-    user_a_id, user_b_id = map(int, trade_id.split("_"))
-
-    if user_id == user_a_id:
-        other_user_id = user_b_id
-    else:
-        other_user_id = user_a_id
-
-    del pending_trades[user_a_id]
-    del pending_trades[user_b_id]
-
-    # Notify both users that the trade was canceled
-    await message.reply("🚫 **Trade canceled successfully.**")
-
-
 
 
