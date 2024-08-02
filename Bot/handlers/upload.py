@@ -86,7 +86,7 @@ async def process_upload_step(client: Client, message: Message):
 
             anime_id = int(anime_id)
         except (ValueError, AttributeError):
-            search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".anime ")
+            search_button = InlineKeyboardButton("🔍 Search for Anime", switch_inline_query_current_chat=".animeid ")
             sent = await message.reply(
                 "❗ Invalid anime ID. Please provide a valid anime ID. If you have just created a new anime space then try searching again.",
                 reply_markup=InlineKeyboardMarkup(

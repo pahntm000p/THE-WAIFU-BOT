@@ -32,9 +32,11 @@ async def smash_image(client: Client, message: Message):
     guessed_name = " ".join(message.command[1:]).strip().lower()
     today_date = datetime.utcnow().date().isoformat()
 
-    # Check if the guessed name matches any part of the character's name
+    # Normalize the character's name parts for comparison
     character_name_parts = drop["image_name"].strip().lower().split()
-    if guessed_name in character_name_parts:
+
+    # Check if the guessed name matches any part of the character's name
+    if any(guessed_name in part for part in character_name_parts) or guessed_name == drop["image_name"].strip().lower():
         # Fetch additional details from the Characters collection
         character = await get_character_details(drop["image_id"])
         if not character:
