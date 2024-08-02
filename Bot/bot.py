@@ -129,7 +129,9 @@ async def backup_command(client: Client, message: Message):
 async def restore_command(client: Client, message: Message):
     await handle_restore(client, message)
 
-
+@app.on_message(filters.command("stats") & filters.user(BOT_OWNER))
+async def stats_command(client: Client, message: Message):
+    await handle_stats(client, message)
 
 
 # Upload/Edit

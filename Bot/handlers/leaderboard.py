@@ -3,17 +3,26 @@ from pyrogram.types import Message
 from pyrogram.errors import PeerIdInvalid
 from Bot.database import db
 from datetime import datetime
-
+import asyncio
+from .. import app
 
 async def fetch_user_names(client, user_ids):
     users = {}
     for user_id in user_ids:
-        try:
-            user = await client.get_users(user_id)
-            users[user.id] = user.mention
-        except PeerIdInvalid:
-            continue
+        attempts = 0
+        while attempts < 3:
+            try:
+                user = await app.get_users(user_id)
+                users[user.id] = user.mention
+                break
+            except PeerIdInvalid:
+                attempts += 1
+                await asyncio.sleep(1)  # Adding a short delay before retrying
+            except Exception:
+                users[user_id] = None
+                break
     return users
+
 
 async def generate_leaderboard_text(title, leaderboard, emoji):
     text = f"{emoji} **{title}** {emoji}\n\n"
