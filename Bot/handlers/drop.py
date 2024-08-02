@@ -1,19 +1,24 @@
-import random
 import time
+import random
 from pyrogram import Client, filters
 from pyrogram.types import Message, ChatMemberUpdated
 from pyrogram.enums import ChatMemberStatus
-from ..database import update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned, get_random_character
-from ..config import OWNER_ID , SUPPORT_CHAT_ID
+from ..database import update_drop, get_message_count, update_message_count, is_user_sudo, ban_user, is_user_banned, get_all_images
+from ..config import OWNER_ID, SUPPORT_CHAT_ID
 import requests
 from io import BytesIO
 import asyncio
 
 lock = asyncio.Lock()
 message_timestamps = {}  # Dictionary to store user message timestamps
+ban_durations = {}  # Dictionary to store user ban durations
+
+# Function to reset ban durations after a certain period of good behavior
+async def reset_ban_duration(user_id):
+    await asyncio.sleep(3600)  # 1 hour
+    ban_durations[user_id] = 10  # Reset ban duration to 10 minutes
 
 async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
-    # Ensure old_chat_member is not None
     if member_update.new_chat_member.user.is_self and (not member_update.old_chat_member or member_update.old_chat_member.status == "left"):
         group_id = member_update.chat.id
         group_title = member_update.chat.title
@@ -35,8 +40,6 @@ async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
             f"🔗 **Username:** @{added_by_username}\n"
             f"📊 **Members Count:** `{members_count}`"
         )
-
-
 
 async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> bool:
     if user_id == OWNER_ID or await is_user_sudo(user_id):
@@ -70,7 +73,6 @@ async def droptime(client: Client, message: Message):
     await update_message_count(group_id, msg_count, 0)
     await message.reply(f"🎉 **Random waifus will be dropped every {msg_count} messages in this group.**")
 
-
 async def check_message_count(client: Client, message: Message):
     user_id = message.from_user.id
     group_id = message.chat.id
@@ -83,12 +85,24 @@ async def check_message_count(client: Client, message: Message):
         if user_id not in message_timestamps:
             message_timestamps[user_id] = []
 
+        # Add current message timestamp
         message_timestamps[user_id].append(current_time)
+
+        # Clean up old timestamps beyond the threshold window (2 seconds)
         message_timestamps[user_id] = [timestamp for timestamp in message_timestamps[user_id] if current_time - timestamp <= 2]
 
         if len(message_timestamps[user_id]) >= 5:
-            await ban_user(user_id, 10)  # Ban for 10 minutes
-            await client.send_message(group_id, f"🚫 **User {message.from_user.first_name} has been temporarily banned for 10 minutes due to spamming.**")
+            # Ban the user
+            if user_id not in ban_durations:
+                ban_durations[user_id] = 10  # Initial ban duration is 10 minutes
+            else:
+                ban_durations[user_id] *= 2  # Double the ban duration for repeated offenses
+
+            await ban_user(user_id, ban_durations[user_id])  # Ban user for the current duration
+            await client.send_message(group_id, f"🚫 **User {message.from_user.first_name} has been temporarily banned for {ban_durations[user_id]} minutes due to spamming.**")
+
+            # Schedule a reset for the ban duration after an hour
+            asyncio.create_task(reset_ban_duration(user_id))
             return
 
         count_doc = await get_message_count(group_id)
@@ -99,12 +113,16 @@ async def check_message_count(client: Client, message: Message):
 
             if current_count >= msg_count:
                 current_count = 0
-                character_doc = await get_random_character()
-                if not character_doc:
+
+                # Fetch all available images and shuffle them
+                all_images = await get_all_images()
+                if not all_images:
                     print("Lol..No Characters Uploaded")
                     return
 
-                character = character_doc[0]
+                random.shuffle(all_images)
+                character = all_images[0]  # Pick the first character after shuffling
+
                 character_id = character["id"]
                 character_url = character["img_url"]
                 character_name = character["name"]
@@ -117,7 +135,7 @@ async def check_message_count(client: Client, message: Message):
                     image_data.name = character_url.split("/")[-1]
 
                     # Send the photo and capture the message response
-                    photo_message = await client.send_photo(group_id, image_data, caption=f"O-Nee Chan ! New Character Is Here.\n**Smash her using** : /smash name")
+                    photo_message = await client.send_photo(group_id, image_data, caption=f"O-Nee Chan ! New Waifu Is Here.\nSmash her using : /smash name")
 
                     # Construct the message link
                     chat_id = photo_message.chat.id
@@ -131,3 +149,4 @@ async def check_message_count(client: Client, message: Message):
                     await client.send_message(group_id, f"Failed to download the image: {e}")
 
             await update_message_count(group_id, msg_count, current_count)
+

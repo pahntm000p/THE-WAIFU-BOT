@@ -5,16 +5,9 @@ from datetime import datetime
 from pymongo import UpdateOne
 from ..database import db 
 
-
 async def smash_image(client: Client, message: Message):
-    if len(message.command) < 2:
-        await message.reply("Please provide the character name.")
-        return
-
-    guessed_name = " ".join(message.command[1:]).strip().lower()
     group_id = message.chat.id
     user_id = message.from_user.id
-    today_date = datetime.utcnow().date().isoformat()
 
     # Retrieve the last drop for the group
     drop = await get_drop(group_id)
@@ -29,8 +22,15 @@ async def smash_image(client: Client, message: Message):
         smashed_user = await client.get_users(drop["smashed_by"])
         smashed_user_mention = smashed_user.mention if smashed_user else f"User ID: {drop['smashed_by']}"
 
-        await message.reply(f"**ℹ Last character was already smashed by {smashed_user_mention} !!**")
+        await message.reply(f"**ℹ Last waifu was already smashed by {smashed_user_mention} !!**")
         return
+
+    if len(message.command) < 2:
+        await message.reply("Please guess the waifu name.")
+        return
+
+    guessed_name = " ".join(message.command[1:]).strip().lower()
+    today_date = datetime.utcnow().date().isoformat()
 
     # Check if the guessed name matches any part of the character's name
     character_name_parts = drop["image_name"].strip().lower().split()
@@ -66,7 +66,7 @@ async def smash_image(client: Client, message: Message):
         rarity = character.get("rarity", "")
         anime = character.get("anime", "")
         await message.reply(
-            f"**🎯 Look You Smashed A {rarity} Character !!\n\n"
+            f"**🎯 Look You Smashed A {rarity} Waifu !!\n\n"
             f"✨ Name : {drop['image_name']}\n"
             f"{rarity_sign} Rarity : {rarity}\n"
             f"🍁 Anime : {anime}\n\n"
@@ -77,6 +77,6 @@ async def smash_image(client: Client, message: Message):
         dropped_image_link = drop.get("dropped_image_link", "")
         await message.reply(
             f"**❌ Incorrect guess : {guessed_name}!!**\n\n"
-            f"**Please try again [🔼 Waifu]({dropped_image_link})**",
+            f"**Please try again -> [Waifu 🔼]({dropped_image_link})**",
             disable_web_page_preview=True
         )

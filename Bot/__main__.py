@@ -16,7 +16,8 @@ if __name__ == "__main__":
     # Set higher logging levels for specific modules
     logging.getLogger("pyrogram.connection").setLevel(logging.WARNING)
     logging.getLogger("pyrogram.session").setLevel(logging.WARNING)
-    
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # Adjust the logging level for httpx
+
     try:
         # Start the application
         app.start()
