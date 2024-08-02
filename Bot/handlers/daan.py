@@ -1,3 +1,4 @@
+import random
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from ..database import get_all_images, update_smashed_image, is_user_sudo
@@ -32,6 +33,9 @@ async def daan(client: Client, message: Message):
     if not all_images:
         await message.reply("⚠️ **Alert:** No characters available to give.")
         return
+
+    # Shuffle the list of images
+    random.shuffle(all_images)
 
     # Repeat images if the total characters are less than the amount
     images_to_give = (all_images * (amount // len(all_images) + 1))[:amount]
