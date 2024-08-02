@@ -5,8 +5,8 @@ from ..handlers.search import search , search_anime
 from ..handlers.drop import droptime, check_message_count, handle_new_member
 from ..handlers.smash import smash_image 
 from ..handlers.collection import smashes, paginate_collection
-from ..handlers.gift import gift_character, confirm_gift, cancel_gift
-from ..handlers.trade import initiate_trade, handle_trade_callback 
+from ..handlers.gift import gift_character, confirm_gift, cancel_gift , cancel_last_gift
+from ..handlers.trade import initiate_trade, handle_trade_callback
 from ..handlers.daan import daan
 from ..handlers.sinfo import sinfo, delete_collection, close_sinfo
 from ..handlers.privacy import ban, unban, add_sudo, remove_sudo , sudoers

@@ -24,7 +24,7 @@ async def update_user_collection(user_id, updated_images):
 
 async def initiate_trade(client: Client, message: Message):
     if len(message.command) != 3:
-        await message.reply("🔄 **Usage: /trade Your_Character_ID User's_Character_ID**\n\n*Reply to the user you want to trade with.*")
+        await message.reply("🔄 **Usage: `/trade Your_Character_ID User's_Character_ID`, reply to the user you want to trade with.**")
         return
 
     char_a_id = message.command[1]
@@ -33,18 +33,18 @@ async def initiate_trade(client: Client, message: Message):
     user_b = message.reply_to_message.from_user if message.reply_to_message else None
 
     if not user_b:
-        await message.reply("❗ **You need to reply to the user you want to trade with.**")
+        await message.reply("❗ You need to reply to the user you want to trade with.")
         return
 
     if user_a.id == user_b.id or user_b.is_bot:
-        await message.reply("🚫 **You can't trade with yourself or bots.**")
+        await message.reply("🚫 You can't trade with yourself or bots.")
         return
 
     if user_a.id in pending_trades:
-        buttons = InlineKeyboardMarkup([
+        cancel_button = InlineKeyboardMarkup([
             [InlineKeyboardButton("❌ Cancel Last Trade", callback_data=f"cancel_last_trade|{user_a.id}")]
         ])
-        await message.reply("⏳ **You have already initiated a trade. Please confirm or cancel it using the button below before starting a new one.**", reply_markup=buttons)
+        await message.reply("🔄 You have already initiated a trade. Please confirm or cancel it before starting a new one.", reply_markup=cancel_button)
         return
 
     # Fetch user collections
@@ -52,15 +52,15 @@ async def initiate_trade(client: Client, message: Message):
     user_b_collection = await get_user_collection(user_b.id)
 
     if not user_a_collection or not any(img['image_id'] == char_a_id for img in user_a_collection.get('images', [])):
-        await message.reply("❓ **You don't have the specified character to trade.**")
+        await message.reply("⚠️ You don't have the specified character to trade.")
         return
 
     if not user_b_collection or not any(img['image_id'] == char_b_id for img in user_b_collection.get('images', [])):
-        await message.reply("❓ **The user doesn't have the specified character to trade.**")
+        await message.reply("⚠️ The user doesn't have the specified character to trade.")
         return
 
     if char_a_id == char_b_id:
-        await message.reply("🔄 **You can't trade the same character.**")
+        await message.reply("🚫 You can't trade the same character.")
         return
 
     # Fetch character details
@@ -68,7 +68,7 @@ async def initiate_trade(client: Client, message: Message):
     char_b = await get_character_details(char_b_id)
 
     if not char_a or not char_b:
-        await message.reply("❓ **One of the characters doesn't exist.**")
+        await message.reply("❓ One of the characters doesn't exist.")
         return
 
     # Save the trade information
@@ -83,41 +83,53 @@ async def initiate_trade(client: Client, message: Message):
     ])
 
     await message.reply(
-        f"🔄 **{user_a.mention} wants to trade** `{char_a.get('name', 'Unknown Character')}` **with** {user_b.mention}'s `{char_b.get('name', 'Unknown Character')}`.",
+        f"🔄 {user_a.mention} wants to trade **{char_a.get('name', 'Unknown Character')}** with {user_b.mention}'s **{char_b.get('name', 'Unknown Character')}**.",
         reply_markup=buttons
     )
 
+
 async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
     data = callback_query.data.split("|")
+    action = data[0]
+
+    if action == "cancel_last_trade":
+        user_id = callback_query.from_user.id
+        trade_id = pending_trades.pop(user_id, None)
+        if trade_id:
+            other_user_id = int(trade_id.split("_")[0]) if int(trade_id.split("_")[0]) != user_id else int(trade_id.split("_")[1])
+            del pending_trades[other_user_id]
+            await callback_query.edit_message_text("**Your last trade has been canceled.**")
+        else:
+            await callback_query.answer("No pending trade found to cancel.", show_alert=True)
+        return
+
     if len(data) < 2:
         await callback_query.answer("Invalid trade data.", show_alert=True)
         return
 
-    action = data[0]
     trade_id = data[1]
 
     if action == "confirm_trade" and len(data) < 4:
         await callback_query.answer("Invalid trade data.", show_alert=True)
         return
 
-    if action == "cancel_last_trade":
-        user_a_id = int(data[1])
-        if user_a_id not in pending_trades:
-            await callback_query.answer("No pending trade to cancel.", show_alert=True)
-            return
-        trade_id = pending_trades[user_a_id]
-        user_a_id, user_b_id = map(int, trade_id.split("_"))
-        del pending_trades[user_a_id]
-        del pending_trades[user_b_id]
-        await callback_query.edit_message_text("🚫 **Trade canceled successfully.**")
+    # Check if trade is pending
+    if trade_id not in pending_trades.values():
+        await callback_query.answer("This trade is no longer pending.", show_alert=True)
+        await callback_query.edit_message_reply_markup(reply_markup=None)  # Remove buttons if the trade is not pending
         return
 
     user_a_id, user_b_id = map(int, trade_id.split("_"))
 
+    # Ensure only the user who received the trade request can click the buttons
+    if callback_query.from_user.id != user_b_id:
+        await callback_query.answer("You are not allowed to perform this action.", show_alert=True)
+        return
+
     if action == "cancel_trade":
         del pending_trades[user_a_id]
         del pending_trades[user_b_id]
-        await callback_query.edit_message_text("Trade Canceled.")
+        await callback_query.edit_message_text("**Trade Canceled.**")
     elif action == "confirm_trade":
         char_a_id = data[2]
         char_b_id = data[3]
@@ -176,5 +188,4 @@ async def handle_trade_callback(client: Client, callback_query: CallbackQuery):
             await callback_query.edit_message_text(f"Trade Completed: {user_a.mention} traded {char_a_details.get('name', 'Unknown Character')} for {user_b.mention}'s {char_b_details.get('name', 'Unknown Character')}.")
     else:
         await callback_query.answer("Only the user who received the trade request can confirm it.", show_alert=True)
-
 

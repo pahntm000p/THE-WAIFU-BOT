@@ -20,7 +20,7 @@ async def update_user_collection(user_id, updated_images):
 
 async def gift_character(client: Client, message: Message):
     if len(message.command) != 2:
-        await message.reply("📜 **Usage:** /gift `id` - reply to the user you want to gift.")
+        await message.reply("🔄 Usage: `/gift {id}`, reply to the user you want to gift.")
         return
 
     image_id = message.command[1]
@@ -28,31 +28,41 @@ async def gift_character(client: Client, message: Message):
     to_user_id = message.reply_to_message.from_user.id if message.reply_to_message else None
 
     if not to_user_id:
-        await message.reply("❗ **You need to reply to the user you want to gift.**")
+        await message.reply("❗ You need to reply to the user you want to gift.")
         return
 
     if to_user_id == from_user_id:
-        await message.reply("🚫 **You cannot gift a character to yourself.**")
+        await message.reply("🚫 You cannot gift a character to yourself.")
         return
 
     if message.reply_to_message.from_user.is_bot:
-        await message.reply("🚫 **You cannot gift a character to a bot.**")
+        await message.reply("🤖 You cannot gift a character to a bot.")
         return
 
     if from_user_id in pending_gifts:
-        await message.reply("⚠️ **You have already initiated a gift. Please confirm or cancel it before starting a new one.**")
+        cancel_last_gift_button = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "❌ Cancel last gift",
+                        callback_data=f"cancel_last_gift|{from_user_id}"
+                    )
+                ]
+            ]
+        )
+        await message.reply("🔄 You have already initiated a gift. Please confirm or cancel it before starting a new one.", reply_markup=cancel_last_gift_button)
         return
 
     # Fetch from_user's collection
     from_user_collection = await get_user_collection(from_user_id)
 
     if not from_user_collection or not any(img['image_id'] == image_id for img in from_user_collection.get('images', [])):
-        await message.reply("❌ **You don't have this character in your collection.**")
+        await message.reply("⚠️ You don't have this character in your collection.")
         return
 
     character = await get_character_details(image_id)
     if not character:
-        await message.reply("🚫 **Character not found.**")
+        await message.reply("❓ Character not found.")
         return
 
     # Send confirmation message with inline buttons
@@ -80,12 +90,17 @@ async def gift_character(client: Client, message: Message):
         reply_markup=confirm_button
     )
 
+
 async def confirm_gift(client: Client, callback_query: CallbackQuery):
     _, from_user_id, to_user_id, image_id = callback_query.data.split("|")
     from_user_id, to_user_id = int(from_user_id), int(to_user_id)
 
     if callback_query.from_user.id != from_user_id:
         await callback_query.answer("You are not allowed to confirm this gift.", show_alert=True)
+        return
+
+    if from_user_id not in pending_gifts:
+        await callback_query.answer("This gift is no longer valid.", show_alert=True)
         return
 
     # Fetch both users' collections
@@ -136,9 +151,31 @@ async def cancel_gift(client: Client, callback_query: CallbackQuery):
         await callback_query.answer("You are not allowed to cancel this gift.", show_alert=True)
         return
 
-    await callback_query.edit_message_text("❌ **Gift Cancelled.**")
+    if from_user_id not in pending_gifts:
+        await callback_query.answer("This gift is no longer valid.", show_alert=True)
+        return
 
+    await callback_query.edit_message_text("**Gift cancelled.**")
 
     # Remove from pending gifts
     if from_user_id in pending_gifts:
         del pending_gifts[from_user_id]
+
+async def cancel_last_gift(client: Client, callback_query: CallbackQuery):
+    _, from_user_id = callback_query.data.split("|")
+    from_user_id = int(from_user_id)
+
+    if callback_query.from_user.id != from_user_id:
+        await callback_query.answer("You are not allowed to cancel this gift.", show_alert=True)
+        return
+
+    if from_user_id not in pending_gifts:
+        await callback_query.answer("This gift is no longer valid.", show_alert=True)
+        return
+
+    await callback_query.edit_message_text("**Last gift cancelled.**")
+
+    # Remove from pending gifts
+    if from_user_id in pending_gifts:
+        del pending_gifts[from_user_id]
+
