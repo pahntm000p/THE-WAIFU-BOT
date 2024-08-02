@@ -12,9 +12,11 @@ async def get_character_details(character_id):
     character = await db.Characters.find_one({"id": character_id})
     return character
 
-def extract_name(user_name):
-    match = re.search(r'>(.*?)<', user_name)
-    return match.group(1) if match else "Unknown User"
+async def fetch_user_name(bot, user_id):
+    user = await bot.get_chat(user_id)
+    mention = f"{user.first_name}"
+    return mention
+
 
 async def get_icaption_preference(user_id):
     preference = await db.Preference.find_one({"user_id": user_id})
@@ -27,10 +29,9 @@ def extract_chat_id(inline_message_id: str) -> int:
         chat_id = int(f"-100{abs(chat_id)}")
     return chat_id
 
-async def fetch_user_names(client, user_ids):
-    users = await client.get_users(user_ids)
-    return {user.id: user.mention for user in users}
-
+async def fetch_user_names(bot, user_ids):
+    users = await bot.get_chat_members(user_ids)
+    return {user.user.id: user.user.mention for user in users}
 
 async def handle_search_anime(query, results):
     anime_name = query.split("search.anime ", 1)[1]
@@ -51,7 +52,6 @@ async def handle_search_anime(query, results):
             input_message_content=InputTextMessageContent(caption, parse_mode='HTML')
         )
         results.append(result)
-
 
 async def handle_anime_query(query, results):
     anime_name = query.split(".anime ", 1)[1]
@@ -107,7 +107,6 @@ async def create_anime_callback(update, context):
         parse_mode='HTML'
     )
 
-
 async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     results = []
@@ -125,7 +124,7 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
             user_collection = await db.Collection.find_one({"user_id": owner_user_id})
 
             if user_collection and user_collection.get("images"):
-                user_name = extract_name(user_collection.get("user_name", "Unknown User"))
+                user_name = await fetch_user_name(context.bot, user_collection["user_id"])
                 user_id = user_collection["user_id"]
                 icaption_preference = await get_icaption_preference(user_id)
 
@@ -134,7 +133,7 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                     character = await get_character_details(image["image_id"])
                     if character:
                         anime_id = character["anime_id"]
-                        if anime_id not in anime_character_count:
+                        if (anime_id not in anime_character_count):
                             anime_character_count[anime_id] = 0
                         anime_character_count[anime_id] += 1
 
@@ -155,17 +154,14 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
 
                         if icaption_preference == "Caption 1":
                             caption = (
-    f"<b>╔═════ ∘◦ ✾ ◦∘ ═════╗</b>\n"
-    f"<b>   {user_name}'s {character['rarity']} Smash</b>\n"
-    f"<b>╚═════ ∘◦ ❈ ◦∘ ═════╝</b>\n\n"
-    f"<b>🍒 Name </b> <b>≿ {character['name']} (x{image['count']}) ≾</b>\n"
-    f"<b>🎴 Anime </b> <b>⊱ {character['anime']} ({user_character_count}/{total_uploaded_characters}) ⊰</b>\n"
-    f"<b>{character['rarity_sign']} Rarity:</b> <b> {character['rarity']} </b>\n\n"
-    f"<b>🔖 ID </b> <b>≼ {character['id']} ≽</b>"
-)
-
-
-
+                                f"<b>╔═════ ∘◦ ✾ ◦∘ ═════╗</b>\n"
+                                f"<b>   {user_name}'s {character['rarity']} Smash</b>\n"
+                                f"<b>╚═════ ∘◦ ❈ ◦∘ ═════╝</b>\n\n"
+                                f"<b>🍒 Name </b> <b>≿ {character['name']} (x{image['count']}) ≾</b>\n"
+                                f"<b>🎴 Anime </b> <b>⊱ {character['anime']} ({user_character_count}/{total_uploaded_characters}) ⊰</b>\n"
+                                f"<b>{character['rarity_sign']} Rarity:</b> <b> {character['rarity']} </b>\n\n"
+                                f"<b>🔖 ID </b> <b>≼ {character['id']} ≽</b>"
+                            )
                         else:
                             caption = (
                                 f"🫧<b>Check out {user_name}'s Smash!</b>🫧\n\n"
@@ -180,6 +176,7 @@ async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
                             parse_mode='HTML'
                         )
                         results.append(result)
+
 
     elif query.startswith(".anime "):
         await handle_anime_query(query, results)
