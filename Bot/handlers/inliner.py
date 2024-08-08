@@ -54,7 +54,7 @@ async def handle_search_anime(query, results):
         results.append(result)
 
 async def handle_anime_query(query, results):
-    anime_name = query.split(".animeid ", 1)[1]
+    anime_name = query.split(".anime ", 1)[1]
     animes = await db.Anime.find({"name": {"$regex": anime_name, "$options": "i"}}).to_list(length=100)
     
     if animes:
