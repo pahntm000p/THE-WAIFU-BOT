@@ -8,6 +8,8 @@ from telegram.constants import ParseMode
 from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from ..database import get_next_anime_id
 from uuid import uuid4
+from ..config import OWNER_ID
+from ..database import is_user_sudo
 
 async def get_character_details(character_id):
     character = await db.Characters.find_one({"id": character_id})
@@ -96,6 +98,13 @@ async def handle_anime_query(query, results):
 
 async def create_anime_callback(update, context):
     query = update.callback_query
+    user_id = query.from_user.id
+
+    # Check if the user is the owner or has sudo privileges
+    if user_id != OWNER_ID and not await is_user_sudo(user_id):
+        await query.answer("You do not have permission to perform this action.")
+        return
+
     creation_id = query.data.split(":")[1]
 
     # Retrieve the anime name using the creation ID

@@ -41,6 +41,16 @@ async def handle_new_member(client: Client, member_update: ChatMemberUpdated):
             f"📊 **Members Count:** `{members_count}`"
         )
 
+# Custom filter to check if a user is warned
+def warned_user_filter(_, __, message: Message):
+    user_id = message.from_user.id
+    if user_id in warned_users:
+        warning_time = warned_users[user_id]
+        if time.time() - warning_time < ignore_duration:
+            return True  # User is still warned
+        else:
+            del warned_users[user_id]  # Remove the user from warned list if the warning period has passed
+    return False  # User is not warned
 
 
 async def is_admin_or_special(client: Client, chat_id: int, user_id: int) -> bool:
@@ -102,8 +112,8 @@ async def check_message_count(client: Client, message: Message):
     if user_id in warned_users and current_time - warned_users[user_id] < ignore_duration:
         return
 
-    # If the user has sent 3 or more messages within 1 second
-    if len(message_timestamps[group_id][user_id]) >= 3:
+    # If the user has sent 5 or more messages within 1 second
+    if len(message_timestamps[group_id][user_id]) >= 5:
         warned_users[user_id] = current_time  # Update the warning timestamp
         await message.reply(f"{message.from_user.first_name} has been banned from this bot for next 10 minutes !!")
         return

@@ -9,19 +9,14 @@ from .. import app
 async def fetch_user_names(client, user_ids):
     users = {}
     for user_id in user_ids:
-        attempts = 0
-        while attempts < 3:
-            try:
-                user = await app.get_users(user_id)
-                users[user.id] = user.mention
-                break
-            except PeerIdInvalid:
-                attempts += 1
-                await asyncio.sleep(1)  # Adding a short delay before retrying
-            except Exception:
-                users[user_id] = None
-                break
+        try:
+            user = await client.get_users(user_id)
+            users[user.id] = user.mention
+        except Exception:
+            # Skip this user if there's an issue fetching their details
+            continue
     return users
+
 
 
 async def generate_leaderboard_text(title, leaderboard, emoji):
@@ -29,8 +24,14 @@ async def generate_leaderboard_text(title, leaderboard, emoji):
     medals = ["🥇", "🥈", "🥉"]
     for index, entry in enumerate(leaderboard, start=1):
         rank = medals[index - 1] if index <= 3 else f"**{index}**"
-        text += f"{rank} {entry['mention']} ➣ **{entry['total_characters']} ({entry['total_unique_characters']})**\n"
+        text += f"{rank}  {entry['mention']} ➣ **{entry['total_characters']} ({entry['total_unique_characters']})**\n"
+        
+        # Add a one-line space after rank 3
+        if index == 3:
+            text += "\n"
+
     return text
+
 
 async def top(client: Client, message: Message):
     fetching_msg = await message.reply("🔄 **Fetching leaderboard details...**")
@@ -58,13 +59,16 @@ async def top(client: Client, message: Message):
     user_ids = [entry["user_id"] for entry in leaderboard[:10]]
     user_mentions = await fetch_user_names(client, user_ids)
 
+    # Filter out entries without user mentions
+    leaderboard = [entry for entry in leaderboard[:10] if entry["user_id"] in user_mentions]
+
     # Update leaderboard with user mentions
-    for entry in leaderboard[:10]:
-        entry["mention"] = user_mentions.get(entry["user_id"], f"User ID: {entry['user_id']}")
+    for entry in leaderboard:
+        entry["mention"] = user_mentions[entry["user_id"]]
 
     # Generate the leaderboard text
     group_name = message.chat.title if message.chat.title else "Group"
-    leaderboard_text = await generate_leaderboard_text(f"{group_name}'s Top 10 Smashers", leaderboard[:10], "⛩️")
+    leaderboard_text = await generate_leaderboard_text(f"{group_name}'s Top 10 Smashers", leaderboard, "⛩️")
 
     await fetching_msg.delete()
     await message.reply(leaderboard_text)
@@ -93,12 +97,15 @@ async def gtop(client: Client, message: Message):
     user_ids = [entry["user_id"] for entry in leaderboard[:10]]
     user_mentions = await fetch_user_names(client, user_ids)
 
+    # Filter out entries without user mentions
+    leaderboard = [entry for entry in leaderboard[:10] if entry["user_id"] in user_mentions]
+
     # Update leaderboard with user mentions
-    for entry in leaderboard[:10]:
-        entry["mention"] = user_mentions.get(entry["user_id"], f"User ID: {entry['user_id']}")
+    for entry in leaderboard:
+        entry["mention"] = user_mentions[entry["user_id"]]
 
     # Generate the leaderboard text
-    leaderboard_text = await generate_leaderboard_text("Global Top 10 Smashers ", leaderboard[:10], "🌍")
+    leaderboard_text = await generate_leaderboard_text("Global Top 10 Smashers", leaderboard, "🌍")
 
     await fetching_msg.delete()
     await message.reply(leaderboard_text)
