@@ -7,6 +7,7 @@ from Bot.database import db
 from telegram.constants import ParseMode
 from telegram import InlineQueryResultArticle, InputTextMessageContent, InlineQueryResultPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from ..database import get_next_anime_id
+from uuid import uuid4
 
 async def get_character_details(character_id):
     character = await db.Characters.find_one({"id": character_id})
@@ -76,20 +77,34 @@ async def handle_anime_query(query, results):
             f"Anime '{anime_name}' has been created successfully."
         )
 
+        # Generate a UUID to reference the anime creation request
+        anime_creation_id = str(uuid4())
+
+        # Store the anime name and the UUID in a temporary collection or in-memory store
+        await db.TempAnimeCreation.insert_one({"creation_id": anime_creation_id, "anime_name": anime_name})
+
         result = InlineQueryResultArticle(
             id="create_anime",
             title=f"Create Anime: {anime_name}",
             input_message_content=InputTextMessageContent(caption, parse_mode='HTML'),
             description="Click here to create a new anime",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("Create Anime", callback_data=f"create_anime:{anime_name}")
+                InlineKeyboardButton("Create Anime", callback_data=f"create_anime:{anime_creation_id}")
             ]])
         )
         results.append(result)
 
 async def create_anime_callback(update, context):
     query = update.callback_query
-    anime_name = query.data.split(":")[1]
+    creation_id = query.data.split(":")[1]
+
+    # Retrieve the anime name using the creation ID
+    anime_creation = await db.TempAnimeCreation.find_one({"creation_id": creation_id})
+    if not anime_creation:
+        await query.answer(f"Failed to retrieve the anime name.")
+        return
+
+    anime_name = anime_creation["anime_name"]
 
     # Check if the anime already exists
     existing_anime = await db.Anime.find_one({"name": anime_name})
@@ -106,6 +121,9 @@ async def create_anime_callback(update, context):
         f"Anime '{anime_name}' has been created successfully with ID {anime_id}.",
         parse_mode='HTML'
     )
+
+    # Remove the temporary anime creation record
+    await db.TempAnimeCreation.delete_one({"creation_id": creation_id})
 
 async def inline_query(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query

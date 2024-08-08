@@ -2,8 +2,7 @@ from pyrogram import Client, filters
 from ..database import get_drop, update_smashed_image, update_drop, get_character_details
 from pyrogram.types import Message
 from datetime import datetime
-from pymongo import UpdateOne
-from ..database import db 
+from ..database import db
 
 async def smash_image(client: Client, message: Message):
     group_id = message.chat.id
@@ -32,11 +31,12 @@ async def smash_image(client: Client, message: Message):
     guessed_name = " ".join(message.command[1:]).strip().lower()
     today_date = datetime.utcnow().date().isoformat()
 
-    # Normalize the character's name parts for comparison
-    character_name_parts = drop["image_name"].strip().lower().split()
+    # Normalize the character's name for comparison
+    character_name = drop["image_name"].strip().lower()
+    character_name_parts = character_name.split()
 
-    # Check if the guessed name matches any part of the character's name
-    if any(guessed_name in part for part in character_name_parts) or guessed_name == drop["image_name"].strip().lower():
+    # Check if the guessed name matches exactly or partially with any part of the character's name
+    if guessed_name in character_name_parts or guessed_name == character_name:
         # Fetch additional details from the Characters collection
         character = await get_character_details(drop["image_id"])
         if not character:
