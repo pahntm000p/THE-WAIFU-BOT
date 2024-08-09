@@ -68,13 +68,29 @@ async def delete_collection(client: Client, callback_query: CallbackQuery):
         return
 
     try:
-        user_id = int(callback_query.data.split("_")[2])
-        await db.Collection.delete_one({"user_id": user_id})
+        data = callback_query.data
 
-        await callback_query.answer("User's collection has been deleted.", show_alert=True)
-        await callback_query.message.delete()
+        user_id = int(data.split("_")[-1])
+
+        if data.startswith("confirm_delete_collection_"):
+            await db.Collection.delete_one({"user_id": user_id})
+            await callback_query.answer("User's collection has been deleted.", show_alert=True)
+            await callback_query.message.delete()
+        else:
+            buttons = [
+                [InlineKeyboardButton("Confirm Deletion", callback_data=f"confirm_delete_collection_{user_id}")],
+                [InlineKeyboardButton("Cancel", callback_data="cancel_delete_collection")]
+            ]
+            await callback_query.message.edit_text(
+                "⚠️ Are you sure you want to delete this user's collection? This action cannot be undone.",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
     except Exception as e:
+        print(f"Error: {e}")  # Debugging print
         await callback_query.answer(f"An error occurred: {e}", show_alert=True)
+
+
+
 
 async def close_sinfo(client: Client, callback_query: CallbackQuery):
     if callback_query.from_user.id != BOT_OWNER:
@@ -85,4 +101,16 @@ async def close_sinfo(client: Client, callback_query: CallbackQuery):
         await callback_query.message.delete()
     except Exception as e:
         await callback_query.answer(f"An error occurred: {e}", show_alert=True)
+
+
+async def cancel_delete_collection(client: Client, callback_query: CallbackQuery):
+    if callback_query.from_user.id != BOT_OWNER:
+        await callback_query.answer("You are not authorized to perform this action.", show_alert=True)
+        return
+
+    try:
+        await callback_query.message.edit_text("Deletion canceled.", reply_markup=None)
+    except Exception as e:
+        await callback_query.answer(f"An error occurred: {e}", show_alert=True)
+
 

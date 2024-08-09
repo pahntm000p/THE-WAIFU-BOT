@@ -100,8 +100,10 @@ app.on_callback_query(filters.regex(r"^(confirm_trade|cancel_trade|cancel_last_t
 app.add_handler(CallbackQueryHandler(confirm_gift, filters.regex(r"^confirm_gift\|") & command_filter))
 app.add_handler(CallbackQueryHandler(cancel_gift, filters.regex(r"^cancel_gift\|") & command_filter))
 app.add_handler(CallbackQueryHandler(cancel_last_gift, filters.regex(r"^cancel_last_gift\|") & command_filter))
-app.add_handler(CallbackQueryHandler(delete_collection, filters.regex(r"^delete_collection_") & command_filter))
-app.add_handler(CallbackQueryHandler(close_sinfo, filters.regex(r"^close_sinfo") & command_filter))
+app.add_handler(CallbackQueryHandler(delete_collection, filters.regex(r"^delete_collection_")))
+app.add_handler(CallbackQueryHandler(delete_collection, filters.regex(r"^confirm_delete_collection_")))  # Added this to ensure the confirm deletion is handled
+app.add_handler(CallbackQueryHandler(close_sinfo, filters.regex(r"^close_sinfo$")))
+app.add_handler(CallbackQueryHandler(cancel_delete_collection, filters.regex(r"^cancel_delete_collection$")))
 app.on_callback_query(filters.regex(r"^fav_confirm:\d+:\d+$"))(fav_confirm)
 app.on_callback_query(filters.regex(r"^fav_cancel:\d+$"))(fav_cancel)
 app.on_callback_query(filters.regex(r"^smode_default:\d+$"))(smode_default)
