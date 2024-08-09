@@ -29,3 +29,4 @@ from .utils import handle_backup , handle_restore
 from ..handlers.upload import add_callback_query_handlers
 from .stats import handle_stats
 from ..handlers.drop import warned_user_filter
+from ..handlers.anime import anime_menu_handler , list_animes_callback_handler ,  rename_anime_callback_handler , rename_anime_text_handler

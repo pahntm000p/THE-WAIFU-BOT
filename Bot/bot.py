@@ -8,6 +8,7 @@ from Bot.database import db, get_next_anime_id
 from .git import git_pull_command, restart_command
 
 
+
 async def command_filter(_, __, message: Message):
     return not await is_user_banned(message.from_user.id)
 
@@ -115,8 +116,6 @@ app.add_handler(CallbackQueryHandler(paginate_collection, filters.regex(r"^page_
 app.on_callback_query(filters.regex(r"^cmode_select:\d+:") & command_filter)(cmode_select)
 app.on_callback_query(filters.regex(r"^cmode_close:\d+$") & command_filter)(cmode_close)
 
-
-
 #MSG COUNT
 non_command_filter = filters.group & ~filters.regex(r"^/")
 app.on_message((filters.text | filters.media | filters.sticker) & filters.group & command_filter)(check_message_count)
@@ -203,11 +202,18 @@ async def handle_text(client: Client, message: Message):
 
 
 
+
 def main() -> None:
     """Run bot."""
     pbot.add_handler(inline_query_handler)
     pbot.add_handler(smasher_callback_handler)
     pbot.add_handler(create_anime_callback_handler)
+    # Add handlers to the dispatcher
+    pbot.add_handler(anime_menu_handler)
+    pbot.add_handler(list_animes_callback_handler)
+    pbot.add_handler(rename_anime_callback_handler)
+    pbot.add_handler(rename_anime_text_handler)
+
     pbot.run_polling(drop_pending_updates=True)
 
 
