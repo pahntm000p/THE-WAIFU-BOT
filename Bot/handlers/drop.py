@@ -112,8 +112,8 @@ async def check_message_count(client: Client, message: Message):
     if user_id in warned_users and current_time - warned_users[user_id] < ignore_duration:
         return
 
-    # If the user has sent 5 or more messages within 1 second
-    if len(message_timestamps[group_id][user_id]) >= 5:
+    # If the user has sent 4 or more messages within 1 second
+    if len(message_timestamps[group_id][user_id]) >= 4:
         warned_users[user_id] = current_time  # Update the warning timestamp
         await message.reply(f"{message.from_user.first_name} has been banned from this bot for next 10 minutes !!")
         return
