@@ -181,6 +181,9 @@ async def handle_cancel_upload_request(client: Client, callback_query: CallbackQ
 async def handle_approval_callback(client: Client, callback_query: CallbackQuery):
     await handle_callback(client, callback_query)
 
+
+
+
 @app.on_message(filters.photo & filters.private)
 async def handle_photo(client: Client, message: Message):
     user_id = message.from_user.id
@@ -188,6 +191,8 @@ async def handle_photo(client: Client, message: Message):
         await process_upload_step(client, message)
     elif user_id in edit_data:
         await process_edit_photo(client, message)
+    elif user_id in upload_request_data:
+        await process_upload_request_step(client, message)
 
 @app.on_message(filters.text & filters.private)
 async def handle_text(client: Client, message: Message):

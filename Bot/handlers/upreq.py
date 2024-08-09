@@ -6,6 +6,7 @@ from Bot.database import db, get_next_id, is_user_sudo
 from Bot.config import SUPPORT_CHAT_ID, OWNER_ID
 from bson.objectid import ObjectId
 from pyrogram.enums import ParseMode
+from telegraph import Telegraph
 
 RARITY_MAPPING = {
     "1": {"name": "Common", "sign": "⚪️"},
@@ -15,13 +16,14 @@ RARITY_MAPPING = {
 }
 
 upload_request_data = {}
-upload_data = {}
+telegraph = Telegraph()
+telegraph.create_account(short_name='WaifuBot')
 
 async def start_upload_request(client: Client, message: Message):
     user_id = message.from_user.id
     upload_request_data[user_id] = {}
     sent = await message.reply(
-        "Please send the image URL.",
+        "🖼️ Please send the image.",
         reply_markup=InlineKeyboardMarkup(
             [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload_request")]]
         )
@@ -40,31 +42,37 @@ async def process_upload_request_step(client: Client, message: Message):
         return
 
     step = len(upload_request_data[user_id])
-    if step == 1:
-        upload_request_data[user_id]["img_url"] = message.text
+    if step == 1 and message.photo:
+        file_id = message.photo.file_id
+        file_path = await client.download_media(file_id)
+        response = telegraph.upload_file(file_path)
+        img_url = f"https://telegra.ph{response[0]['src']}"
+        upload_request_data[user_id]["img_url"] = img_url
         await client.delete_messages(message.chat.id, upload_request_data[user_id]["last_message_id"])
         sent = await message.reply(
-            "Please send the character name.",
+            "📝 Please send the character name.",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload_request")]]
             )
         )
         upload_request_data[user_id]["last_message_id"] = sent.id
+
     elif step == 2:
         upload_request_data[user_id]["name"] = message.text.replace("-", " ")
         await client.delete_messages(message.chat.id, upload_request_data[user_id]["last_message_id"])
         sent = await message.reply(
-            "Please send the anime name.",
+            "📺 Please send the anime name.",
             reply_markup=InlineKeyboardMarkup(
                 [[InlineKeyboardButton("❌ Cancel", callback_data="cancel_upload_request")]]
             )
         )
         upload_request_data[user_id]["last_message_id"] = sent.id
+
     elif step == 3:
         upload_request_data[user_id]["anime"] = message.text.replace("-", " ")
         await client.delete_messages(message.chat.id, upload_request_data[user_id]["last_message_id"])
         sent = await message.reply(
-            "Please choose the rarity.",
+            "🌟 Please choose the rarity.",
             reply_markup=InlineKeyboardMarkup(
                 [
                     [InlineKeyboardButton(f"{info['sign']} {info['name']}", callback_data=f"set_request_rarity_{key}")]
@@ -197,41 +205,25 @@ async def handle_callback(client: Client, callback_query: CallbackQuery):
 
         elif action == "decline_upreq":
             if callback_query.from_user.id == OWNER_ID or await is_user_sudo(callback_query.from_user.id):
-                declined_caption = (f"✨ **Name**: {request['name']}\n"
-                                    f"{request['rarity_sign']} **Rarity**: {request['rarity']}\n"
-                                    f"🍁 **Anime**: {request['anime']}\n"
-                                    "❌ **Status:** Declined")
-                await callback_query.message.edit_caption(declined_caption)
                 await db.Upreq.update_one({"_id": ObjectId(request_id)}, {"$set": {"status": "Declined"}})
-                await callback_query.answer("Request declined.")
-
-                decliner = await client.get_users(callback_query.from_user.id)
-                decliner_mention = f"<a href='tg://user?id={decliner.id}'>{decliner.first_name}</a>"
-                caption = (f"<b>{decliner_mention} just declined the upload request !!</b>\n\n"
-                           f"<b>🐼 Name : {request['name']}</b>\n"
-                           f"<b>🌺 Anime : {request['anime']}</b>\n"
-                           f"{request['rarity_sign']} <b>Rarity : {request['rarity']}</b>")
-
-                await client.send_photo(
-                    SUPPORT_CHAT_ID,
-                    request["img_url"],
-                    caption=caption,
-                    parse_mode=ParseMode.HTML
-                )
+                await callback_query.message.edit_caption(callback_query.message.caption + "\n❌ **Status:** Declined")
+                await callback_query.answer("Request has been declined.")
 
                 if request_message_id:
                     await client.edit_message_text(
                         chat_id=request["user_id"],
                         message_id=request_message_id,
-                        text=f"Your request has been declined by {decliner_mention}.",
+                        text="Your request has been declined by the support team.",
                         parse_mode=ParseMode.HTML
                     )
                 await client.send_message(
                     chat_id=user_id,
-                    text=f"Your request has been declined by {decliner_mention}.",
+                    text="Your request has been declined by the support team.",
                     parse_mode=ParseMode.HTML
                 )
             else:
                 await callback_query.answer("You are not authorized to decline this request.", show_alert=True)
+
     except Exception as e:
         await callback_query.answer(f"An error occurred: {e}", show_alert=True)
+
