@@ -74,8 +74,14 @@ async def guild_command(client: Client, message: Message):
 
 @app.on_callback_query(filters.regex(r"confirm_transfer_ownership"))
 async def confirm_transfer_ownership(client: Client, callback_query: CallbackQuery):
-    await callback_query.message.delete()
-    await callback_query.message.reply_text("🔄 **Please enter the user ID of the member you want to transfer ownership to:**")
+    user_id = callback_query.from_user.id
+    user_guild = await db.Guilds.find_one({"owner_id": user_id})
+    if user_guild:
+        guild_management_data[user_id] = "transfer_ownership"
+        await callback_query.message.delete()
+        await callback_query.message.reply_text("🔄 **Please enter the user ID of the member you want to transfer ownership to:**")
+    else:
+        await callback_query.message.reply_text("❌ **You do not own any guild to transfer ownership.**", quote=True)
 
 @app.on_callback_query(filters.regex(r"confirm_delete_guild"))
 async def confirm_delete_guild(client: Client, callback_query: CallbackQuery):
@@ -142,66 +148,31 @@ async def transfer_ownership(client: Client, callback_query: CallbackQuery):
     else:
         await callback_query.message.reply_text("❌ **You are not the owner of any guild.**")
 
-# Define the non_command_filter
-non_command_filter = filters.group & ~filters.regex(r"^/")
+@app.on_callback_query(filters.regex(r"create_guild"))
+async def create_guild(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    existing_guild = await db.Guilds.find_one({"members": user_id})
 
-@app.on_message(filters.text & filters.private & non_command_filter)
-async def handle_text(client: Client, message: Message):
-    user_id = message.from_user.id
-    text = message.text.strip()
+    if existing_guild:
+        await callback_query.message.reply_text("❌ **You are already a member of a guild. You cannot create a new one.**")
+    else:
+        guild_creation_data[user_id] = {}
+        await callback_query.message.reply_text("🛡️ **Please enter the name of your new guild:**")
+    
+    await callback_query.answer()
 
-    if user_id in guild_creation_data:
-        if "guild_name" not in guild_creation_data[user_id]:
-            guild_creation_data[user_id]["guild_name"] = text
-            guild_id = await get_unique_guild_id()
-            guild_creation_data[user_id]["guild_id"] = guild_id
+@app.on_callback_query(filters.regex(r"join_guild"))
+async def join_guild(client: Client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    existing_guild = await db.Guilds.find_one({"members": user_id})
 
-            # Save the guild to the database
-            await db.Guilds.insert_one({
-                "guild_id": guild_id,
-                "guild_name": text,
-                "owner_id": user_id,
-                "members": [user_id]
-            })
+    if existing_guild:
+        await callback_query.message.reply_text("❌ **You are already a member of a guild. You cannot join another one.**")
+    else:
+        guild_join_data[user_id] = {}
+        await callback_query.message.reply_text("⚔️ **Please enter the Guild ID of the guild you want to join:**")
+    
+    await callback_query.answer()
 
-            await message.reply_text(
-                f"🏰 **Guild '{text}' created successfully!**\n"
-                f"🔑 **Your Guild ID is:** `{guild_id}`\n"
-                "🔗 **Share this ID with others to invite them to your guild.**"
-            )
-            del guild_creation_data[user_id]
-        else:
-            await message.reply_text("⚠️ **You have already created a guild. Please use the guild ID to invite others.**")
-    elif user_id in guild_join_data:
-        guild_id = text
-        guild = await db.Guilds.find_one({"guild_id": guild_id})
 
-        if guild:
-            if user_id in guild['members']:
-                await message.reply_text("⚠️ **You are already a member of this guild.**")
-            else:
-                # Add user to guild members
-                await db.Guilds.update_one(
-                    {"guild_id": guild_id},
-                    {"$addToSet": {"members": user_id}}
-                )
-                await message.reply_text(f"✅ **You have successfully joined the guild '{guild['guild_name']}'!**")
-        else:
-            await message.reply_text("❌ **Invalid Guild ID. Please try again.**")
-        
-        del guild_join_data[user_id]
-    elif user_id in guild_management_data:
-        if guild_management_data[user_id] == "transfer_ownership":
-            new_owner_id = int(text)
-            new_owner_guild = await db.Guilds.find_one({"members": new_owner_id})
-
-            if new_owner_guild and new_owner_guild['guild_id'] == (await db.Guilds.find_one({"owner_id": user_id}))['guild_id']:
-                await db.Guilds.update_one(
-                    {"owner_id": user_id},
-                    {"$set": {"owner_id": new_owner_id}}
-                )
-                await message.reply_text(f"🔄 **Ownership has been transferred to user ID `{new_owner_id}` successfully!**")
-            else:
-                await message.reply_text("❌ **The user is not a member of your guild or is part of another guild. Please try again.**")
-
-        del guild_management_data[user_id]
+    # Handle other text messages as per your bot's functionality

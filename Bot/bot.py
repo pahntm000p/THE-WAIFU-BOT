@@ -192,13 +192,55 @@ async def handle_photo(client: Client, message: Message):
 @app.on_message(filters.text & filters.private)
 async def handle_text(client: Client, message: Message):
     user_id = message.from_user.id
+    text = message.text.strip()
 
+    # Check if the user is in any of the process states (upload, edit, guild creation, join, management)
     if user_id in upload_request_data:
         await process_upload_request_step(client, message)
-    elif user_id in upload_data:
+        return
+    if user_id in upload_data:
         await process_upload_step(client, message)
-    elif user_id in edit_data:
+        return
+    if user_id in edit_data:
         await process_edit_step(client, message)
+        return
+    if user_id in guild_creation_data:
+        guild_creation_data[user_id]['guild_name'] = text
+        guild_id = await get_unique_guild_id()
+        guild_creation_data[user_id]['guild_id'] = guild_id
+
+        await db.Guilds.insert_one({
+            "guild_id": guild_id,
+            "guild_name": text,
+            "owner_id": user_id,
+            "members": [user_id]
+        })
+
+        await message.reply_text(f"🛡️ **Guild '{text}' has been created successfully with ID `{guild_id}`.**")
+        del guild_creation_data[user_id]
+        return
+
+    if user_id in guild_join_data:
+        guild = await db.Guilds.find_one({"guild_id": text})
+        if guild:
+            await db.Guilds.update_one({"guild_id": text}, {"$push": {"members": user_id}})
+            await message.reply_text(f"⚔️ **You have successfully joined the guild '{guild['guild_name']}'.**")
+        else:
+            await message.reply_text("❌ **Guild ID not found. Please try again.**")
+        del guild_join_data[user_id]
+        return
+
+    if user_id in guild_management_data:
+        if guild_management_data[user_id] == "transfer_ownership":
+            new_owner_id = int(text)
+            user_guild = await db.Guilds.find_one({"owner_id": user_id})
+            if user_guild and new_owner_id in user_guild['members']:
+                await db.Guilds.update_one({"guild_id": user_guild['guild_id']}, {"$set": {"owner_id": new_owner_id}})
+                await message.reply_text(f"🔄 **Guild ownership has been transferred to user `{new_owner_id}`.**")
+            else:
+                await message.reply_text("❌ **Invalid user ID or the user is not a member of your guild.**")
+            del guild_management_data[user_id]
+        return
 
 
 
