@@ -142,7 +142,10 @@ async def transfer_ownership(client: Client, callback_query: CallbackQuery):
     else:
         await callback_query.message.reply_text("❌ **You are not the owner of any guild.**")
 
-@app.on_message(filters.text & filters.private)
+# Define the non_command_filter
+non_command_filter = filters.group & ~filters.regex(r"^/")
+
+@app.on_message(filters.text & filters.private & non_command_filter)
 async def handle_text(client: Client, message: Message):
     user_id = message.from_user.id
     text = message.text.strip()
