@@ -31,3 +31,4 @@ from .stats import handle_stats
 from ..handlers.drop import warned_user_filter
 from ..handlers.anime import anime_menu_handler , list_animes_callback_handler ,  rename_anime_callback_handler , rename_anime_text_handler
 from ..handlers.guild import *
+from ..handlers.upgen import start_gen2_upload  , set_gen2_rarity , cancel_gen2_upload , gen2_upload_data , process_gen2_upload_step

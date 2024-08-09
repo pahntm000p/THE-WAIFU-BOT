@@ -181,6 +181,21 @@ async def handle_cancel_upload_request(client: Client, callback_query: CallbackQ
 async def handle_approval_callback(client: Client, callback_query: CallbackQuery):
     await handle_callback(client, callback_query)
 
+# Command to start the Gen2 character upload process
+@app.on_message(filters.command("upgen") & sudo_filter)
+async def handle_gen2_upload(client: Client, message: Message):
+    await start_gen2_upload(client, message)
+
+# Callback query handler to set the Gen2 character rarity
+@app.on_callback_query(filters.regex(r"^set_gen2_rarity_"))
+async def handle_set_gen2_rarity(client: Client, callback_query: CallbackQuery):
+    await set_gen2_rarity(client, callback_query)
+
+# Callback query handler to cancel the Gen2 character upload process
+@app.on_callback_query(filters.regex(r"^cancel_gen2_upload"))
+async def handle_cancel_gen2_upload(client: Client, callback_query: CallbackQuery):
+    await cancel_gen2_upload(client, callback_query)
+
 
 
 
@@ -193,13 +208,15 @@ async def handle_photo(client: Client, message: Message):
         await process_edit_photo(client, message)
     elif user_id in upload_request_data:
         await process_upload_request_step(client, message)
+    elif user_id in gen2_upload_data:
+        await process_gen2_upload_step(client, message)
 
 @app.on_message(filters.text & filters.private)
 async def handle_text(client: Client, message: Message):
     user_id = message.from_user.id
     text = message.text.strip()
 
-    # Check if the user is in any of the process states (upload, edit, guild creation, join, management)
+    # Check if the user is in any of the process states (upload, edit, Gen2 upload, guild creation, join, management)
     if user_id in upload_request_data:
         await process_upload_request_step(client, message)
         return
@@ -209,6 +226,10 @@ async def handle_text(client: Client, message: Message):
     if user_id in edit_data:
         await process_edit_step(client, message)
         return
+    if user_id in gen2_upload_data:
+        await process_gen2_upload_step(client, message)
+        return
+        
     if user_id in guild_creation_data:
         guild_creation_data[user_id]['guild_name'] = text
         guild_id = await get_unique_guild_id()

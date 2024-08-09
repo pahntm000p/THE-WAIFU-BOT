@@ -1,0 +1,6 @@
+pyrogram
+tgcrypto
+motor
+telegraph
+requests
+python-telegram-bot
